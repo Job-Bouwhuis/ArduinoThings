@@ -30,8 +30,8 @@ void setup()
   button.OnClick.Add(
       [](Components::Button *self)
       {
-        const short freqs[] = {262, 294, 330, 0}; // C D E rest
-        const short durs[] = {200, 200, 200, 100};
+        const uint16_t freqs[] = {262, 294, 330, 0}; // C D E rest
+        const uint16_t durs[] = {200, 200, 200, 100};
 
         buzzer.PlayTrack(freqs, durs, 4);
       });

@@ -17,8 +17,8 @@ namespace Components
         void StopTone();
 
         // Track interface (copies data to buzzer-owned heap)
-        void PlayTrack(const short *frequencies,
-                       const short *durations,
+        void PlayTrack(const uint16_t (&frequencies)[],
+                       const uint16_t (&durations)[],
                        size_t length);
         void StopTrack();
         bool IsPlayingTrack() const;
@@ -33,22 +33,22 @@ namespace Components
         struct Track
         {
         public:
-            short *frequencies;
-            short *durations;
+            uint16_t *frequencies;
+            uint16_t *durations;
             size_t length;
 
             size_t index;
             unsigned long noteEndTime;
             bool playing;
 
-            Track(const short *freqs, const short *durs, size_t len)
+            Track(const uint16_t (&freqs)[], const uint16_t (&durs)[], size_t len)
                 : frequencies(nullptr), durations(nullptr),
                   length(len), index(0), noteEndTime(0), playing(true)
             {
                 if (length > 0)
                 {
-                    frequencies = new short[length];
-                    durations = new short[length];
+                    frequencies = new uint16_t[length];
+                    durations = new uint16_t[length];
                     for (size_t i = 0; i < length; ++i)
                     {
                         frequencies[i] = freqs[i];

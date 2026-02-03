@@ -11,15 +11,15 @@ namespace Components
     void Buzzer::Tick()
     {
         if (!activeTrack || !activeTrack->playing)
+        {
+            noTone(pin);
             return;
+        }
 
         unsigned long now = millis();
 
         if (now < activeTrack->noteEndTime)
             return;
-
-        // debug
-        Serial.printf("new: %lu - nextNoteEnd: %lu\n", now, activeTrack->noteEndTime);
 
         PlayNextNote();
     }
@@ -41,19 +41,19 @@ namespace Components
         toneEndTime = 0;
     }
 
-    void Buzzer::PlayTrack(const short *frequencies,
-                           const short *durations,
+    void Buzzer::PlayTrack(const uint16_t (&frequencies)[],
+                           const uint16_t (&durations)[],
                            size_t length)
     {
-        // stop & free previous track if any
         StopTrack();
 
-        if (length == 0 || frequencies == nullptr || durations == nullptr)
+        if (length == 0)
             return;
 
-        // allocate and copy into a new heap Track (Buzzer is friend so it can call private ctor)
-        activeTrack = std::unique_ptr<Track>(new Track(frequencies, durations, length));
-        // start playback immediately
+        activeTrack = std::make_unique<Track>(frequencies, durations, length);
+        activeTrack->index = 0;
+        activeTrack->playing = true;
+
         PlayNextNote();
     }
 
@@ -63,7 +63,7 @@ namespace Components
             return;
 
         noTone(pin);
-        // destroy the track (calls Track::~Track which deletes arrays)
+        // destroy current track object
         activeTrack.reset();
     }
 
@@ -79,24 +79,38 @@ namespace Components
 
         if (activeTrack->index >= activeTrack->length)
         {
+            Serial.println("Track complete!");
             noTone(pin);
-            activeTrack->playing = false;
-            // free track once finished
-            activeTrack.reset();
+            StopTrack();
             return;
         }
 
-        short freq = activeTrack->frequencies[activeTrack->index];
-        short duration = activeTrack->durations[activeTrack->index];
-
-        Serial.printf("Playing freq: %d for %dms\n", freq, duration);
+        const uint16_t freq = activeTrack->frequencies[activeTrack->index];
+        const uint16_t dur = activeTrack->durations[activeTrack->index];
 
         if (freq > 0)
-            tone(pin, freq);
-        else
-            noTone(pin); // rest
+        {
 
-        activeTrack->noteEndTime = millis() + static_cast<unsigned long>(duration);
-        activeTrack->index++;
+            if (dur == 0)
+            {
+                noTone(pin);
+                Serial.printf("No duration note: %d. playing for 1ms", freq);
+                activeTrack->noteEndTime = millis() + 1;
+            }
+            else
+            {
+                Serial.printf("Freq: %d for %dms\n", freq, dur);
+                tone(pin, freq, dur);
+                activeTrack->noteEndTime = millis() + dur;
+            }
+        }
+        else
+        {
+            noTone(pin);
+            activeTrack->noteEndTime = millis() + dur;
+            Serial.printf("Restnote for %dms\n", dur);
+        }
+
+        ++activeTrack->index;
     }
 }
