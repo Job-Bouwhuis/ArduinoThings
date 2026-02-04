@@ -23,10 +23,17 @@ namespace Components
         void StopTrack();
         bool IsPlayingTrack() const;
 
+        void SetVolume(byte volume); // 0–255
+        byte GetVolume() const;
+
     private:
         byte pin;
         int currentTone;
         unsigned long toneEndTime;
+        unsigned long lastToggleMicros;
+        unsigned int halfPeriodMicros;
+        bool pinState;
+        byte volume;
 
         void PlayNextNote();
 
