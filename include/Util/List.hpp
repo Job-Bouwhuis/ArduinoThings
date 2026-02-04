@@ -8,10 +8,7 @@
 
 namespace Util
 {
-    // Single List implementation that adapts stored type depending on whether T is a pointer.
-    // - If T is U* then stored_t = std::shared_ptr<U>
-    // - Else stored_t = std::shared_ptr<T>
-    template <typename T, int GROW_SIZE = 4>
+    template <typename T, int GROW_SIZE = 4, int INITIAL = 0>
     class List
     {
     private:
@@ -21,9 +18,12 @@ namespace Util
         using stored_t = std::shared_ptr<element_t>;
 
     public:
-        List() : data(nullptr), count(0), capacity(0) {}
+        List() : data(nullptr), count(0), capacity(0)
+        {
+            EnsureCapacity(INITIAL);
+        }
 
-        // Move ctor
+        // Move
         List(List &&other) noexcept
             : data(other.data), count(other.count), capacity(other.capacity)
         {
@@ -32,7 +32,7 @@ namespace Util
             other.capacity = 0;
         }
 
-        // Copy ctor (deep copy of pointed/contained objects)
+        // Copy
         List(const List &other) : data(nullptr), count(0), capacity(0)
         {
             if (other.count == 0)
@@ -46,7 +46,7 @@ namespace Util
             count = other.count;
         }
 
-        // Move assignment
+        // Move
         List &operator=(List &&other) noexcept
         {
             if (this == &other)
@@ -64,7 +64,7 @@ namespace Util
             return *this;
         }
 
-        // Copy assignment (deep copy)
+        // Copy
         List &operator=(const List &other)
         {
             if (this == &other)
@@ -98,11 +98,8 @@ namespace Util
             capacity = 0;
         }
 
-        // ---------- Add overloads ----------
-        // Non-pointer T: Add(const T&), Add(T&&)
         template <typename U = T>
-        std::enable_if_t<!std::is_pointer<U>::value, void>
-        Add(const U &value)
+        std::enable_if_t<!std::is_pointer<U>::value, void> Add(const U &value)
         {
             EnsureCapacity(count + 1);
             data[count] = std::make_shared<element_t>(value);
@@ -110,28 +107,23 @@ namespace Util
         }
 
         template <typename U = T>
-        std::enable_if_t<!std::is_pointer<U>::value, void>
-        Add(U &&value)
+        std::enable_if_t<!std::is_pointer<U>::value, void> Add(U &&value)
         {
             EnsureCapacity(count + 1);
             data[count] = std::make_shared<element_t>(std::move(value));
             ++count;
         }
 
-        // Pointer T (U*): Add(U* raw) - takes ownership of raw pointer (wraps in shared_ptr)
         template <typename U = T>
-        std::enable_if_t<std::is_pointer<U>::value, void>
-        Add(std::remove_pointer_t<U> *rawPtr)
+        std::enable_if_t<std::is_pointer<U>::value, void> Add(std::remove_pointer_t<U> *rawPtr)
         {
             EnsureCapacity(count + 1);
             data[count] = stored_t(rawPtr);
             ++count;
         }
 
-        // For pointer specialization also allow adding by value or move of the underlying element
         template <typename U = T>
-        std::enable_if_t<std::is_pointer<U>::value, void>
-        Add(const element_t &value)
+        std::enable_if_t<std::is_pointer<U>::value, void> Add(const element_t &value)
         {
             EnsureCapacity(count + 1);
             data[count] = std::make_shared<element_t>(value);
@@ -139,15 +131,13 @@ namespace Util
         }
 
         template <typename U = T>
-        std::enable_if_t<std::is_pointer<U>::value, void>
-        Add(element_t &&value)
+        std::enable_if_t<std::is_pointer<U>::value, void> Add(element_t &&value)
         {
             EnsureCapacity(count + 1);
             data[count] = std::make_shared<element_t>(std::move(value));
             ++count;
         }
 
-        // Common: add existing shared_ptr<element_t>
         void Add(const stored_t &ptr)
         {
             EnsureCapacity(count + 1);
@@ -162,8 +152,6 @@ namespace Util
             ++count;
         }
 
-        // ---------- Accessors ----------
-        // Return reference to stored shared_ptr so caller can copy or mutate it
         stored_t &operator[](SIZE index)
         {
             return data[index];
@@ -174,7 +162,6 @@ namespace Util
             return data[index];
         }
 
-        // Return a copy/shared handle to element
         stored_t Get(SIZE index) const
         {
             if (!data || index >= count)
@@ -208,7 +195,6 @@ namespace Util
             Reallocate(newCapacity);
         }
 
-        // Iteration: pointers to stored_t so `for (auto &sp : list)` yields shared_ptr<...>&
         stored_t *begin() { return data; }
         stored_t *end() { return data + count; }
 

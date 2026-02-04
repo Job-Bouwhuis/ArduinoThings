@@ -40,6 +40,16 @@ namespace Components
         }
     }
 
+    void Buzzer::SetVolume(byte vol)
+    {
+        volume = vol;
+    }
+
+    byte Buzzer::GetVolume() const
+    {
+        return volume;
+    }
+
     void Buzzer::StopTone()
     {
         currentTone = 0;

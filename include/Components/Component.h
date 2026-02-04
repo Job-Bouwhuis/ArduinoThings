@@ -5,5 +5,5 @@ class Component
 public:
     Component() = default;
     virtual ~Component() = default;
-    virtual void Tick() = 0;
+    virtual void Tick() {}
 };
