@@ -40,6 +40,11 @@ namespace Util
             }
         }
 
+        bool HasSubs()
+        {
+            return callbacks.Count() > 0;
+        }
+
         void Invoke(Args... args)
         {
             for (SIZE i = 0; i < callbacks.Count(); ++i)

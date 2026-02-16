@@ -10,6 +10,11 @@ namespace Util
     class ConsoleProvider
     {
     public:
+        ConsoleProvider()
+        {
+            Serial.begin(115200);
+        }
+
         template <typename... Args>
         void Write(Args &&...args)
         {
