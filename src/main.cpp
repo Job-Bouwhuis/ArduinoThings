@@ -5,51 +5,35 @@
 #include "Components/Buzzer.h"
 #include "Util/List.hpp"
 #include "Util/MemoryWatcher.hpp"
-#include "Huiswerk/Week1/solution.h"
+Components::Led led(D7);
+Components::Button button(USER_BTN);
 
-// Components::Led led(LED_BUILTIN);
-// Components::Button button(USER_BTN);
-// Components::LightSensor lightSens(A0);
-// Components::Buzzer buzzer(D3);
+Util::MemoryWatcher memWatcher;
 
-// Util::MemoryWatcher memWatcher;
-
-// Util::List<Component *, 1, 4> comps;
-
-Huiswerk::Week1::Opdracht3::Solution sol;
+Util::List<Component *> comps;
 
 void setup()
 {
   Serial.begin(115200);
+  led.On();
+  // delay(5000); // otherwise serial doesnt do a thing
+  led.Off();
 
-  // led.On();
+  comps.Add(&led);
+  comps.Add(&button);
+  button.SetEdge(Components::ButtonEdge::Rising);
 
-  // comps.Add(&led);
-  // comps.Add(&button);
-  // comps.Add(&lightSens);
-  // comps.Add(&buzzer);
-  // buzzer.SetVolume(128);
-  // button.SetEdge(Components::ButtonEdge::Rising);
-
-  // button.OnClick.Add(
-  //     [](Components::Button *self)
-  //     {
-  //       led.Toggle();
-  //     });
-
-  // lightSens.AddWatcher(LIGHT_EITHER, 800,
-  //                      [](Components::LightSensor *self, int current)
-  //                      {
-  //                        led.Toggle();
-  //                      });
+  button.OnClick.Add(
+      [](Components::Button *self)
+      {
+        led.Toggle();
+      });
 }
 
 void loop()
 {
-  sol.Tick();
-
-  // for (auto comp : comps)
-  // {
-  //   comp->Tick();
-  // }
+  for (auto comp : comps)
+  {
+    comp->Tick();
+  }
 }
