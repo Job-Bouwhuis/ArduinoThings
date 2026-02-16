@@ -4,16 +4,21 @@
 
 namespace Components
 {
-    class LedController : public Component
+    class Led : public Component
     {
     private:
         byte pin;
 
         void Init(bool initial);
-        
+
     public:
-        LedController(byte pin, bool initialState);
-        LedController(byte pin);
+        Led(byte pin, bool initialState);
+        Led(byte pin);
+
+        byte GetPin()
+        {
+            return pin;
+        }
 
         void Tick() override;
 
