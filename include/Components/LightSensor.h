@@ -2,7 +2,6 @@
 #include <Arduino.h>
 #include "Component.h"
 #include "Util/Action.h"
-#include "Util/Map.hpp"
 
 #define LIGHT_ABOVE 0
 #define LIGHT_BELOW 1
@@ -36,8 +35,5 @@ namespace Components
                 int updatesPerSecond = 0;
                 int lastUpdateTime = 0;
                 int updateIntervalMs = 0;
-
-                Util::Map<int, LightEvent>
-                    eventMap;
         };
 }

@@ -2,16 +2,6 @@
 
 namespace Components
 {
-    Led::Led(uint8_t p) : pin(p)
-    {
-        Init(false);
-    }
-
-    Led::Led(uint8_t p, bool initial) : pin(p)
-    {
-        Init(initial);
-    }
-
     void Led::Init(bool state)
     {
         pinMode(pin, OUTPUT);

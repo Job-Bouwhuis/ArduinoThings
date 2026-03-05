@@ -12,6 +12,7 @@ namespace Components
         pinMode(pin, INPUT_PULLUP);
         currentState = ReadRaw();
         previousState = currentState;
+        debouncer.Update(ReadRaw());
     }
 
     bool Button::ReadRaw() const
@@ -21,51 +22,31 @@ namespace Components
 
     void Button::Tick()
     {
-        ResetFlags();
-
         bool raw = ReadRaw();
 
-        if (raw != currentState)
+        if (debouncer.Update(raw))
         {
-            debounceCounter++;
-
-            if (debounceCounter >= debounceThreshold)
+            // pressed
+            if (debouncer.Get() && !debouncer.Previous())
             {
-                previousState = currentState;
-                currentState = raw;
-                debounceCounter = 0;
-
-                // Pressed
-                if (currentState && !previousState)
-                {
-                    pressedTick = true;
-
-                    if (edgeType == ButtonEdge::Falling)
-                        OnClick(this);
-                }
-
-                // Released
-                if (!currentState && previousState)
-                {
-                    releasedTick = true;
-
-                    if (edgeType == ButtonEdge::Rising)
-                        OnClick(this);
-                }
+                pressedTick = true;
+                if (edgeType == ButtonEdge::Falling)
+                    OnClick(this);
             }
-        }
-        else
-        {
-            debounceCounter = 0;
+
+            // released
+            if (!debouncer.Get() && debouncer.Previous())
+            {
+                releasedTick = true;
+                if (edgeType == ButtonEdge::Rising)
+                    OnClick(this);
+            }
         }
     }
 
-    const bool Button::IsHeld() const { return currentState; }
-
+    const bool Button::IsHeld() const { return debouncer.Get(); }
     const bool Button::IsPressed() const { return pressedTick; }
-
     const bool Button::IsReleased() const { return releasedTick; }
-
     void Button::ResetFlags()
     {
         pressedTick = false;

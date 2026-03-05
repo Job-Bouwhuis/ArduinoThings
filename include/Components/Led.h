@@ -12,8 +12,43 @@ namespace Components
         void Init(bool initial);
 
     public:
-        Led(byte pin, bool initialState);
-        Led(byte pin);
+        // Constructors
+        Led(byte p, bool initialState) : pin(p) {}
+        Led(byte p) : pin(p) { Init(false); }
+
+        // Copy constructor
+        Led(const Led &other) : pin(other.pin)
+        {
+            pinMode(pin, OUTPUT);
+        }
+
+        // Move constructor
+        Led(Led &&other) noexcept : pin(other.pin)
+        {
+            pinMode(pin, OUTPUT);
+        }
+
+        // Copy assignment
+        Led &operator=(const Led &other)
+        {
+            if (this != &other)
+            {
+                pin = other.pin;
+                pinMode(pin, OUTPUT);
+            }
+            return *this;
+        }
+
+        // Move assignment
+        Led &operator=(Led &&other) noexcept
+        {
+            if (this != &other)
+            {
+                pin = other.pin;
+                pinMode(pin, OUTPUT);
+            }
+            return *this;
+        }
 
         byte GetPin()
         {

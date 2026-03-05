@@ -32,23 +32,7 @@ namespace Components
 
                 int newValue = analogRead(pin);
 
-                for (auto &kv : eventMap)
-                {
-                        int threshold = kv.key;
-                        LightEvent &ev = kv.value;
-
-                        bool crossedBelow = (lastValue >= threshold && newValue < threshold);
-                        bool crossedAbove = (lastValue <= threshold && newValue > threshold);
-
-                        if (crossedBelow)
-                                ev.below(this, newValue);
-                        if (crossedAbove)
-                                ev.above(this, newValue);
-                        if (crossedBelow || crossedAbove)
-                                ev.either(this, newValue);
-                }
-
-                lastValue = newValue;
+                lastValue = value;
                 value = newValue;
         }
 
@@ -59,28 +43,5 @@ namespace Components
 
         void LightSensor::AddWatcher(int eventType, int lightLevel, void (*event)(LightSensor *, int))
         {
-                auto ev = eventMap.Get(lightLevel);
-                if (ev == nullptr)
-                {
-                        LightEvent newEv;
-                        eventMap.Set(lightLevel, newEv);
-                        ev = eventMap.Get(lightLevel);
-                }
-
-                switch (eventType)
-                {
-                case LIGHT_BELOW:
-                        ev->below.Add(event);
-                        break;
-                case LIGHT_ABOVE:
-                        ev->above.Add(event);
-                        break;
-                case LIGHT_EITHER:
-                        ev->either.Add(event);
-                        break;
-                default:
-                        // TODO: use a better erroring system than nothing
-                        break;
-                }
         }
 }

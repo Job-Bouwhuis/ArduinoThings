@@ -1,122 +1,125 @@
-#include <memory>
-#include "Util/List.hpp"
-#include <functional>
-#include "Components/Led.h"
+// #pragma once
 
-class State;
-using StatePtr = std::shared_ptr<State>;
+// #include <memory>
+// #include "Util/List.hpp"
+// #include <functional>
+// #include "Components/Led.h"
 
-class Transition
-{
-public:
-    Transition(StatePtr targetState, std::function<bool()> condition)
-    {
-        target = targetState;
-        conditions.Add(condition);
-    }
+// class State;
+// using StatePtr = std::shared_ptr<State>;
 
-    StatePtr target;
-    Util::List<std::function<bool()>> conditions;
-    std::function<void()> onTransition;
+// class Transition
+// {
+// public:
+//     Transition(StatePtr targetState, std::function<bool()> condition)
+//     {
+//         target = targetState;
+//         conditions.Add(condition);
+//     }
 
-    bool CanTrigger() const
-    {
-        for (auto &cond : conditions)
-        {
-            if (!cond->operator()())
-                return false;
-        }
-        return true;
-    }
-};
+//     StatePtr target;
+//     Util::List<std::function<bool()>> conditions;
+//     std::function<void()> onTransition;
 
-class State
-{
-public:
-    Util::List<Transition> transitions;
-    std::weak_ptr<State> parent;
+//     bool CanTrigger() const
+//     {
+//         for (int i = 0; i < conditions.Count(); i++)
+//         {
+//             auto cond = conditions[i];
+//             if (!cond->operator()())
+//                 return false;
+//         }
+//         return true;
+//     }
+// };
 
-    std::function<void()> OnStateEnter;
-    std::function<void()> OnStateExit;
+// class State
+// {
+// public:
+//     Util::List<Transition> transitions;
+//     std::weak_ptr<State> parent;
 
-    virtual ~State() = default;
-    virtual void Tick(float dt) = 0;
+//     std::function<void()> OnStateEnter;
+//     std::function<void()> OnStateExit;
 
-    void AddTransition(const Transition &t)
-    {
-        transitions.Add(t);
-    }
+//     virtual ~State() = default;
+//     virtual void Tick(float dt) = 0;
 
-    virtual void Enter()
-    {
-        if (OnStateEnter)
-            OnStateEnter();
-    }
+//     void AddTransition(const Transition &t)
+//     {
+//         transitions.Add(t);
+//     }
 
-    virtual void Exit()
-    {
-        if (OnStateExit)
-            OnStateExit();
-    }
-};
+//     virtual void Enter()
+//     {
+//         if (OnStateEnter)
+//             OnStateEnter();
+//     }
 
-class TimedState : public State
-{
-protected:
-    float timer = 0.0f;
-    float duration;
+//     virtual void Exit()
+//     {
+//         if (OnStateExit)
+//             OnStateExit();
+//     }
+// };
 
-public:
-    TimedState(float dur) : duration(dur) {}
+// class TimedState : public State
+// {
+// protected:
+//     float timer = 0.0f;
+//     float duration;
 
-    void Enter() override
-    {
-        ResetTimer();
-        State::Enter();
-    }
+// public:
+//     TimedState(float dur) : duration(dur) {}
 
-    void Tick(float dt) override
-    {
-        timer += dt;
-    }
+//     void Enter() override
+//     {
+//         ResetTimer();
+//         State::Enter();
+//     }
 
-    bool IsTimeUp() const { return timer >= duration; }
-    void ResetTimer() { timer = 0.0f; }
-};
+//     void Tick(float dt) override
+//     {
+//         timer += dt;
+//     }
 
-class StateMachine
-{
-    StatePtr currentState;
+//     bool IsTimeUp() const { return timer >= duration; }
+//     void ResetTimer() { timer = 0.0f; }
+// };
 
-public:
-    void SetInitialState(StatePtr state)
-    {
-        currentState = state;
-        currentState->Enter();
-    }
+// class StateMachine
+// {
+//     StatePtr currentState;
 
-    void Tick(float dt)
-    {
-        if (!currentState)
-            return;
+// public:
+//     void SetInitialState(StatePtr state)
+//     {
+//         currentState = state;
+//         currentState->Enter();
+//     }
 
-        for (auto &tPtr : currentState->transitions)
-        {
-            if (!tPtr)
-                continue;
-            if (!tPtr->target)
-                continue;
-            if (tPtr->CanTrigger())
-            {
-                currentState->Exit();
-                currentState = tPtr->target;
-                currentState->Enter();
-                if (tPtr->onTransition)
-                    tPtr->onTransition();
-                return;
-            }
-        }
+//     void Tick(float dt)
+//     {
+//         if (!currentState)
+//             return;
 
-        currentState->Tick(dt);
-    }
-};
+//         for (auto &tPtr : currentState->transitions)
+//         {
+//             if (!tPtr)
+//                 continue;
+//             if (!tPtr->target)
+//                 continue;
+//             if (tPtr->CanTrigger())
+//             {
+//                 currentState->Exit();
+//                 currentState = tPtr->target;
+//                 currentState->Enter();
+//                 if (tPtr->onTransition)
+//                     tPtr->onTransition();
+//                 return;
+//             }
+//         }
+
+//         currentState->Tick(dt);
+//     }
+// };

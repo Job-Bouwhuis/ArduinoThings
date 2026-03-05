@@ -1,238 +1,334 @@
-#pragma once
-#include <cstddef>
-#include <utility>
-#include <memory>
-#include <type_traits>
+// #pragma once
+// #include <cstddef>
+// #include <utility>
+// #include <memory>
+// #include <type_traits>
 
-#define SIZE std::size_t
+// #define SIZE std::size_t
 
-namespace Util
-{
-    template <typename T, int GROW_SIZE = 4, int INITIAL = 0>
-    class List
-    {
-    private:
-        // helper types
-        static constexpr bool is_raw_ptr = std::is_pointer<T>::value;
-        using element_t = std::conditional_t<is_raw_ptr, std::remove_pointer_t<T>, T>;
-        using stored_t = std::shared_ptr<element_t>;
+// namespace Util
+// {
+//     struct IHolder;
 
-    public:
-        List() : data(nullptr), count(0), capacity(0)
-        {
-            EnsureCapacity(INITIAL);
-        }
+//     using holder_sp = std::shared_ptr<IHolder>;
 
-        // Move
-        List(List &&other) noexcept
-            : data(other.data), count(other.count), capacity(other.capacity)
-        {
-            other.data = nullptr;
-            other.count = 0;
-            other.capacity = 0;
-        }
+//     struct IHolder
+//     {
+//         virtual ~IHolder() = default;
+//         virtual void *GetRaw() = 0;
+//         virtual const void *GetRawConst() const = 0;
+//     };
 
-        // Copy
-        List(const List &other) : data(nullptr), count(0), capacity(0)
-        {
-            if (other.count == 0)
-                return;
-            Reallocate(other.count);
-            for (SIZE i = 0; i < other.count; ++i)
-            {
-                if (other.data[i])
-                    data[i] = std::make_shared<element_t>(*other.data[i]);
-            }
-            count = other.count;
-        }
+//     template <typename V>
+//     struct HolderValue : IHolder
+//     {
+//         using value_t = V;
 
-        // Move
-        List &operator=(List &&other) noexcept
-        {
-            if (this == &other)
-                return *this;
-            clearStorage();
-            delete[] data;
+//         template <typename X>
+//         HolderValue(X &&v) : value(std::forward<X>(v)) {}
 
-            data = other.data;
-            count = other.count;
-            capacity = other.capacity;
+//         void *GetRaw() override { return &value; }
+//         const void *GetRawConst() const override { return &value; }
 
-            other.data = nullptr;
-            other.count = 0;
-            other.capacity = 0;
-            return *this;
-        }
+//         V value;
+//         V *operator->() { return &value; }
+//         const V *operator->() const { return &value; }
+//         V &get() { return value; }
+//     };
 
-        // Copy
-        List &operator=(const List &other)
-        {
-            if (this == &other)
-                return *this;
+//     template <typename V>
+//     struct HolderShared : IHolder
+//     {
+//         using sp_t = std::shared_ptr<V>;
 
-            clearStorage();
-            delete[] data;
-            data = nullptr;
-            count = 0;
-            capacity = 0;
+//         HolderShared(sp_t s) : sp(s) {}
 
-            if (other.count == 0)
-                return *this;
+//         void *GetRaw() override { return sp.get(); }
+//         const void *GetRawConst() const override { return sp.get(); }
 
-            Reallocate(other.count);
-            for (SIZE i = 0; i < other.count; ++i)
-            {
-                if (other.data[i])
-                    data[i] = std::make_shared<element_t>(*other.data[i]);
-            }
-            count = other.count;
-            return *this;
-        }
+//         sp_t sp;
+//         V *operator->() { return sp.get(); }
+//         const V *operator->() const { return sp.get(); }
+//         sp_t &get_shared() { return sp; }
+//     };
 
-        ~List()
-        {
-            clearStorage();
-            delete[] data;
-            data = nullptr;
-            count = 0;
-            capacity = 0;
-        }
+//     template <typename V>
+//     struct HolderRaw : IHolder
+//     {
+//         using value_t = V;
+//         HolderRaw(V *ptr) : raw(ptr) {}
 
-        template <typename U = T>
-        std::enable_if_t<!std::is_pointer<U>::value, void> Add(const U &value)
-        {
-            EnsureCapacity(count + 1);
-            data[count] = std::make_shared<element_t>(value);
-            ++count;
-        }
+//         void *GetRaw() override { return raw; }
+//         const void *GetRawConst() const override { return raw; }
 
-        template <typename U = T>
-        std::enable_if_t<!std::is_pointer<U>::value, void> Add(U &&value)
-        {
-            EnsureCapacity(count + 1);
-            data[count] = std::make_shared<element_t>(std::move(value));
-            ++count;
-        }
+//         V *raw;
+//         V *operator->() { return raw; }
+//         const V *operator->() const { return raw; }
+//         V *get() { return raw; }
+//     };
 
-        template <typename U = T>
-        std::enable_if_t<std::is_pointer<U>::value, void> Add(std::remove_pointer_t<U> *rawPtr)
-        {
-            EnsureCapacity(count + 1);
-            data[count] = stored_t(rawPtr);
-            ++count;
-        }
+//     template <typename T, int GROW_SIZE = 4, int INITIAL = 0>
+//     class List
+//     {
+//     private:
+//         static constexpr bool is_raw_ptr = std::is_pointer<T>::value;
+//         using element_t = std::conditional_t<is_raw_ptr, std::remove_pointer_t<T>, T>;
+//         using stored_t = holder_sp;
 
-        template <typename U = T>
-        std::enable_if_t<std::is_pointer<U>::value, void> Add(const element_t &value)
-        {
-            EnsureCapacity(count + 1);
-            data[count] = std::make_shared<element_t>(value);
-            ++count;
-        }
+//     public:
+//         List() : data(nullptr), count(0), capacity(0) { EnsureCapacity(INITIAL); }
 
-        template <typename U = T>
-        std::enable_if_t<std::is_pointer<U>::value, void> Add(element_t &&value)
-        {
-            EnsureCapacity(count + 1);
-            data[count] = std::make_shared<element_t>(std::move(value));
-            ++count;
-        }
+//         List(List &&other) noexcept : data(other.data), count(other.count), capacity(other.capacity)
+//         {
+//             other.data = nullptr;
+//             other.count = 0;
+//             other.capacity = 0;
+//         }
 
-        void Add(const stored_t &ptr)
-        {
-            EnsureCapacity(count + 1);
-            data[count] = ptr;
-            ++count;
-        }
+//         List(const List &other) : data(nullptr), count(0), capacity(0)
+//         {
+//             if (other.count == 0)
+//                 return;
+//             Reallocate(other.count);
+//             for (SIZE i = 0; i < other.count; ++i)
+//                 data[i] = other.data[i];
+//             count = other.count;
+//         }
 
-        void Add(stored_t &&ptr)
-        {
-            EnsureCapacity(count + 1);
-            data[count] = std::move(ptr);
-            ++count;
-        }
+//         List &operator=(List &&other) noexcept
+//         {
+//             if (this == &other)
+//                 return *this;
+//             clearStorage();
+//             delete[] data;
 
-        stored_t &operator[](SIZE index)
-        {
-            return data[index];
-        }
+//             data = other.data;
+//             count = other.count;
+//             capacity = other.capacity;
 
-        const stored_t &operator[](SIZE index) const
-        {
-            return data[index];
-        }
+//             other.data = nullptr;
+//             other.count = 0;
+//             other.capacity = 0;
+//             return *this;
+//         }
 
-        stored_t Get(SIZE index) const
-        {
-            if (!data || index >= count)
-                return nullptr;
-            return data[index];
-        }
+//         List &operator=(const List &other)
+//         {
+//             if (this == &other)
+//                 return *this;
 
-        SIZE Count() const { return count; }
-        SIZE Capacity() const { return capacity; }
+//             clearStorage();
+//             delete[] data;
+//             data = nullptr;
+//             count = 0;
+//             capacity = 0;
 
-        void Clear()
-        {
-            clearStorage();
-            count = 0;
-        }
+//             if (other.count == 0)
+//                 return *this;
 
-        void RemoveAt(SIZE index)
-        {
-            if (index >= count)
-                return;
-            for (SIZE i = index; i + 1 < count; ++i)
-                data[i] = std::move(data[i + 1]);
-            data[count - 1].reset();
-            --count;
-        }
+//             Reallocate(other.count);
+//             for (SIZE i = 0; i < other.count; ++i)
+//                 data[i] = other.data[i];
+//             count = other.count;
+//             return *this;
+//         }
 
-        void Reserve(SIZE newCapacity)
-        {
-            if (newCapacity <= capacity)
-                return;
-            Reallocate(newCapacity);
-        }
+//         ~List()
+//         {
+//             clearStorage();
+//             delete[] data;
+//             data = nullptr;
+//             count = 0;
+//             capacity = 0;
+//         }
 
-        stored_t *begin() { return data; }
-        stored_t *end() { return data + count; }
+//         // -----------------------
+//         // Add by value: stores a copy/move inside the list (it owns the value).
+//         // returns raw element_t*
+//         // -----------------------
+//         template <typename U>
+//         void *Add(U &&value)
+//         {
+//             using TYPE = std::decay_t<U>;
+//             static_assert(std::is_base_of<element_t, TYPE>::value || std::is_same<element_t, TYPE>::value,
+//                           "Added type must be element_t or derive from it");
 
-        const stored_t *begin() const { return data; }
-        const stored_t *end() const { return data + count; }
+//             EnsureCapacity(count + 1);
+//             auto h = std::make_shared<HolderValue<TYPE>>(std::forward<U>(value));
+//             data[count] = h;
+//             ++count;
+//             // return *h;
+//         }
 
-    private:
-        stored_t *data;
-        SIZE count;
-        SIZE capacity;
+//         // -----------------------
+//         // Add pointer: stores a raw pointer inside the list.
+//         // returns the same pointer
+//         // -----------------------
+//         template <typename U>
+//         U *Add(U *ptr)
+//         {
+//             static_assert(std::is_base_of<std::remove_pointer_t<element_t>, std::remove_pointer_t<U>>::value,
+//                           "Added pointer must be element_t* or derived");
 
-        void EnsureCapacity(SIZE required)
-        {
-            if (required <= capacity)
-                return;
-            SIZE newCapacity = (capacity == 0) ? static_cast<SIZE>(GROW_SIZE) : (capacity + static_cast<SIZE>(GROW_SIZE));
-            if (newCapacity < required)
-                newCapacity = required;
-            Reallocate(newCapacity);
-        }
+//             EnsureCapacity(count + 1);
 
-        void Reallocate(SIZE newCapacity)
-        {
-            auto *newData = new stored_t[newCapacity];
-            for (SIZE i = 0; i < count; ++i)
-                newData[i] = std::move(data[i]);
-            clearStorage();
-            delete[] data;
-            data = newData;
-            capacity = newCapacity;
-        }
+//             auto h = std::make_shared<HolderValue<U>>(ptr); // store the raw pointer inside a HolderValue
+//             data[count] = h;
+//             ++count;
 
-        void clearStorage()
-        {
-            if (!data)
-                return;
-            for (SIZE i = 0; i < count; ++i)
-                data[i].reset();
-        }
-    };
-}
+//             return ptr;
+//         }
+
+//         // -----------------------
+//         // Add an owning shared_ptr (list keeps ownership).
+//         // returns the raw pointer to the element
+//         // -----------------------
+//         template <typename U>
+//         element_t *AddOwned(std::shared_ptr<U> sp)
+//         {
+//             using Udec = std::decay_t<U>;
+//             static_assert(std::is_base_of<element_t, Udec>::value || std::is_same<element_t, Udec>::value,
+//                           "Shared_ptr element type must be element_t or derive from it");
+
+//             EnsureCapacity(count + 1);
+//             auto h = std::make_shared<HolderShared<Udec>>(sp);
+//             data[count] = h;
+//             ++count;
+//             return reinterpret_cast<U *>(h->GetRaw());
+//         }
+
+//         // -----------------------
+//         // Add a non-owning raw pointer (list does not delete it).
+//         // returns the same raw pointer
+//         // -----------------------
+//         element_t *AddRaw(element_t *rawPtr)
+//         {
+//             EnsureCapacity(count + 1);
+//             auto h = std::make_shared<HolderRaw<element_t>>(rawPtr);
+//             data[count] = h;
+//             ++count;
+//             return rawPtr;
+//         }
+
+//         // -----------------------
+//         // Accessors - always return raw pointers to element_t
+//         // -----------------------
+//         element_t *Get(SIZE index)
+//         {
+//             if (!data || index >= count)
+//                 return nullptr;
+//             return reinterpret_cast<element_t *>(data[index]->GetRaw());
+//         }
+
+//         const element_t *Get(SIZE index) const
+//         {
+//             if (!data || index >= count)
+//                 return nullptr;
+//             return reinterpret_cast<const element_t *>(data[index]->GetRawConst());
+//         }
+
+//         // operator[] returns raw pointer
+//         element_t *operator[](SIZE index) { return Get(index); }
+//         const element_t *operator[](SIZE index) const { return Get(index); }
+
+//         SIZE Count() const { return count; }
+//         SIZE Capacity() const { return capacity; }
+
+//         void Clear()
+//         {
+//             clearStorage();
+//             count = 0;
+//         }
+
+//         void RemoveAt(SIZE index)
+//         {
+//             if (index >= count)
+//                 return;
+//             for (SIZE i = index; i + 1 < count; ++i)
+//                 data[i] = std::move(data[i + 1]);
+//             data[count - 1].reset();
+//             --count;
+//         }
+
+//         void Reserve(SIZE newCapacity)
+//         {
+//             if (newCapacity <= capacity)
+//                 return;
+//             Reallocate(newCapacity);
+//         }
+
+//         // Iterator yields raw element_t*
+//         struct Iterator
+//         {
+//             stored_t *ptr;
+//             Iterator(stored_t *p) : ptr(p) {}
+//             element_t *operator*() const { return reinterpret_cast<element_t *>((*ptr)->GetRaw()); }
+//             Iterator &operator++()
+//             {
+//                 ++ptr;
+//                 return *this;
+//             }
+//             Iterator operator++(int)
+//             {
+//                 Iterator tmp = *this;
+//                 ++ptr;
+//                 return tmp;
+//             }
+//             bool operator==(const Iterator &o) const { return ptr == o.ptr; }
+//             bool operator!=(const Iterator &o) const { return ptr != o.ptr; }
+//         };
+
+//         Iterator begin() { return Iterator(data); }
+//         Iterator end() { return Iterator(data + count); }
+//         // const iterators
+//         struct ConstIterator
+//         {
+//             stored_t *ptr;
+//             ConstIterator(stored_t *p) : ptr(p) {}
+//             const element_t *operator*() const { return reinterpret_cast<const element_t *>((*ptr)->GetRawConst()); }
+//             ConstIterator &operator++()
+//             {
+//                 ++ptr;
+//                 return *this;
+//             }
+//             bool operator==(const ConstIterator &o) const { return ptr == o.ptr; }
+//             bool operator!=(const ConstIterator &o) const { return ptr != o.ptr; }
+//         };
+//         ConstIterator begin() const { return ConstIterator(data); }
+//         ConstIterator end() const { return ConstIterator(data + count); }
+
+//     private:
+//         stored_t *data;
+//         SIZE count;
+//         SIZE capacity;
+
+//         void EnsureCapacity(SIZE required)
+//         {
+//             if (required <= capacity)
+//                 return;
+//             SIZE newCapacity = (capacity == 0) ? static_cast<SIZE>(GROW_SIZE) : (capacity + static_cast<SIZE>(GROW_SIZE));
+//             if (newCapacity < required)
+//                 newCapacity = required;
+//             Reallocate(newCapacity);
+//         }
+
+//         void Reallocate(SIZE newCapacity)
+//         {
+//             auto *newData = new stored_t[newCapacity];
+//             for (SIZE i = 0; i < count; ++i)
+//                 newData[i] = std::move(data[i]);
+//             clearStorage();
+//             delete[] data;
+//             data = newData;
+//             capacity = newCapacity;
+//         }
+
+//         void clearStorage()
+//         {
+//             if (!data)
+//                 return;
+//             for (SIZE i = 0; i < count; ++i)
+//                 data[i].reset();
+//         }
+//     };
+// } // namespace Util

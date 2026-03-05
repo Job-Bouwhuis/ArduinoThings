@@ -1,7 +1,6 @@
 #pragma once
-#include "List.hpp"
+#include <list>
 #include <functional>
-#include <memory>
 
 namespace Util
 {
@@ -9,56 +8,38 @@ namespace Util
     class Action
     {
     private:
-        List<std::function<void(Args...)>> callbacks;
+        std::list<std::function<void(Args...)>> callbacks;
 
     public:
-        std::shared_ptr<std::function<void(Args...)>> Add(const std::function<void(Args...)> &fn)
-        {
-            callbacks.Add(fn);
-            return callbacks.Get(callbacks.Count() - 1);
-        }
+        Action() = default;
 
         template <typename F>
-        std::shared_ptr<std::function<void(Args...)>> Add(F &&f)
+        void Add(F &&f)
         {
-            std::function<void(Args...)> fn(std::forward<F>(f));
-            callbacks.Add(std::move(fn));
-            return callbacks.Get(callbacks.Count() - 1);
+            callbacks.push_back(std::forward<F>(f));
         }
 
-        void Remove(const std::shared_ptr<std::function<void(Args...)>> &handle)
+        void Clear()
         {
-            if (!handle)
-                return;
-            for (SIZE i = 0; i < callbacks.Count(); ++i)
-            {
-                if (callbacks.Get(i) == handle)
-                {
-                    callbacks.RemoveAt(i);
-                    return;
-                }
-            }
+            callbacks.clear();
         }
 
-        bool HasSubs()
+        bool HasSubs() const
         {
-            return callbacks.Count() > 0;
+            return !callbacks.empty();
         }
 
         void Invoke(Args... args)
         {
-            for (SIZE i = 0; i < callbacks.Count(); ++i)
+            for (auto &cb : callbacks)
             {
-                auto cb = callbacks[i];
-                if (cb && *cb)
-                {
-                    (*cb)(args...);
-                }
+                cb(args...);
             }
         }
 
-        void operator()(Args... args) { Invoke(args...); }
-
-        void Clear() { callbacks.Clear(); }
+        void operator()(Args... args)
+        {
+            Invoke(args...);
+        }
     };
 }
