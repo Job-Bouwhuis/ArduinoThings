@@ -6,37 +6,50 @@ class Debouncer
 private:
     T currentValue;
     T previousValue;
-    int counter;
-    int threshold;
+    T pendingValue;
+    bool hasPending;
+    unsigned long lastChangeTime;
+    unsigned long thresholdMs;
 
 public:
-    Debouncer(int debounceThreshold = 5)
-        : currentValue(), previousValue(), counter(0), threshold(debounceThreshold) {}
+    Debouncer(unsigned long debounceMs = 200)
+        : currentValue(), previousValue(), pendingValue(),
+          hasPending(false), lastChangeTime(0), thresholdMs(debounceMs)
+    {
+    }
 
     void Reset()
     {
-        counter = 0;
+        hasPending = false;
         previousValue = currentValue;
+        lastChangeTime = millis();
     }
 
     bool Update(T newValue)
     {
-        if (newValue != currentValue)
+        unsigned long now = millis();
+
+        // New candidate value — restart the debounce window
+        if (!hasPending || newValue != pendingValue)
         {
-            counter++;
-            if (counter >= threshold)
-            {
-                previousValue = currentValue;
-                currentValue = newValue;
-                counter = 0;
-                return true;
-            }
+            pendingValue = newValue;
+            hasPending = true;
+            lastChangeTime = now;
+            return false;
         }
-        else
-        {
-            counter = 0;
-        }
-        return false;
+
+        // Candidate matches, but hasn't settled yet
+        if ((now - lastChangeTime) < thresholdMs)
+            return false;
+
+        // Settled — only commit if it actually changed
+        hasPending = false;
+        if (currentValue == pendingValue)
+            return false;
+
+        previousValue = currentValue;
+        currentValue = pendingValue;
+        return true;
     }
 
     const T &Get() const { return currentValue; }

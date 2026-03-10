@@ -1,10 +1,13 @@
 #pragma once
 
 #include <TM1638plus.h>
+#include "Util/Debouncer.hpp"
+#include "Components/Component.h"
+#include "Util/util.h"
 
 namespace Components
 {
-    class WADA
+    class WADA : public Component
     {
     public:
         WADA(byte strobe, byte clock, byte dio)
@@ -16,29 +19,56 @@ namespace Components
 
         void Write(const char *text)
         {
-            tm.reset();
             tm.displayText(text);
         }
 
         void Write(unsigned long num)
         {
-            tm.reset();
             tm.displayIntNum(num);
         }
 
         void WriteSeg(byte pos, byte value)
         {
-            tm.reset();
             tm.display7Seg(pos, value);
         }
 
         void SetLed(byte pos, bool state)
         {
-            tm.reset();
             tm.setLED(pos, state ? 1 : 0);
+            Serial.printf("%d=%d\n", pos, state);
         }
+
+        void reset()
+        {
+            tm.reset();
+        }
+
+        Components::Button* GetButton(byte index)
+        {
+            return &buttons[index];
+        }
+
+        void Tick() override
+        {
+            auto buttonStates = tm.readButtons();
+            for (int i = 0; i < 8; i++)
+            {
+                bool cur = !(buttonStates & 0x01); // invert: active-low → active-high
+                buttons[i].UpdateState(cur);
+                buttonStates >>= 1;
+            }
+        }   
 
     private:
         TM1638plus tm;
+        Components::Button buttons[8] = {
+            Components::Button(),
+            Components::Button(),
+            Components::Button(),
+            Components::Button(),
+            Components::Button(),
+            Components::Button(),
+            Components::Button(),
+            Components::Button()};
     };
 }

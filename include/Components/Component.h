@@ -1,9 +1,10 @@
 #pragma once
 
-class Component
-{
-public:
-    Component() = default;
-    virtual ~Component() = default;
-    virtual void Tick() {}
-};
+
+    class Component
+    {
+    public:
+        Component() = default;
+        virtual ~Component() = default;
+        virtual void Tick() {}
+    };

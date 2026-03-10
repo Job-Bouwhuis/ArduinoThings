@@ -3,7 +3,6 @@
 #include <Arduino.h>
 #include "Component.h"
 #include "Util/Action.h"
-#include "Util/List.hpp"
 #include "Util/Debouncer.hpp"
 
 namespace Components
@@ -17,61 +16,107 @@ namespace Components
     class Button : public Component
     {
     private:
-        byte pin;
+        byte pin = 0;
+        bool byPin = true; // true = read from pin, false = manual feed
 
-        bool currentState;
-        bool previousState;
+        bool currentState = false;
+        bool previousState = false;
         ButtonEdge edgeType = ButtonEdge::Falling;
 
-        bool pressedTick;
-        bool releasedTick;
+        bool pressedTick = false;
+        bool releasedTick = false;
 
-        uint8_t debounceCounter;
+        Debouncer<bool> debouncer;
         const uint8_t debounceThreshold = 2;
 
-        bool ReadRaw() const;
-        void ResetFlags();
-        Debouncer<bool> debouncer;
+        bool ReadRaw() const
+        {
+            return digitalRead(pin) == LOW;
+        }
+
+        void ResetFlags()
+        {
+            pressedTick = false;
+            releasedTick = false;
+        }
 
     public:
         Util::Action<Button *> OnClick;
 
-        Button(uint8_t p);
-        Button(const Button &other)
-            : pin(other.pin),
-              currentState(other.currentState),
-              previousState(other.previousState),
-              edgeType(other.edgeType),
-              pressedTick(other.pressedTick),
-              releasedTick(other.releasedTick),
-              debounceCounter(other.debounceCounter),
-              OnClick(other.OnClick) // assumes Action supports copy
+        Button() : byPin(false), debouncer(debounceThreshold) {}
+
+        Button(uint8_t p) : pin(p), byPin(true), debouncer(debounceThreshold)
         {
-            // no need to reset flags, they are already copied
+            pinMode(pin, INPUT_PULLUP);
+            currentState = ReadRaw();
+            previousState = currentState;
+            debouncer.Update(currentState);
         }
 
-        Button(Button &&other) noexcept
+        // Copy constructor
+        Button(const Button &other)
             : pin(other.pin),
+              byPin(other.byPin),
               currentState(other.currentState),
               previousState(other.previousState),
               edgeType(other.edgeType),
               pressedTick(other.pressedTick),
               releasedTick(other.releasedTick),
-              debounceCounter(other.debounceCounter),
+              debouncer(other.debouncer),
+              OnClick(other.OnClick)
+        {
+        }
+
+        // Move constructor
+        Button(Button &&other) noexcept
+            : pin(other.pin),
+              byPin(other.byPin),
+              currentState(other.currentState),
+              previousState(other.previousState),
+              edgeType(other.edgeType),
+              pressedTick(other.pressedTick),
+              releasedTick(other.releasedTick),
+              debouncer(std::move(other.debouncer)),
               OnClick(std::move(other.OnClick))
         {
-            // optionally reset other to safe defaults
             other.currentState = false;
             other.previousState = false;
             other.pressedTick = false;
             other.releasedTick = false;
         }
+
         void SetEdge(ButtonEdge edge) { edgeType = edge; }
 
-        void Tick() override;
+        void Tick() override
+        {
+            if (byPin)
+                UpdateState(ReadRaw());
+        }
 
-        const bool IsHeld() const;
-        const bool IsPressed() const;
-        const bool IsReleased() const;
+        void UpdateState(bool raw)
+        {
+            if (debouncer.Update(raw))
+            {
+                // Pressed
+                if (debouncer.Get() && !debouncer.Previous())
+                {
+                    pressedTick = true;
+                    if (edgeType == ButtonEdge::Falling)
+                        OnClick(this);
+                }
+
+                // Released
+                if (!debouncer.Get() && debouncer.Previous())
+                {
+                    releasedTick = true;
+                    if (edgeType == ButtonEdge::Rising)
+                        OnClick(this);
+                }
+            }
+        }
+
+        const bool IsHeld() const { return debouncer.Get(); }
+        const bool IsPressed() const { return pressedTick; }
+        const bool IsReleased() const { return releasedTick; }
     };
 }
