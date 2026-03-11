@@ -1,6 +1,6 @@
 #pragma once
 #include "Components/Led.h"
-#include "Components/Button.h"
+#include "Components/Button.hpp"
 #include "Util/Console.h"
 
 namespace Huiswerk::Week1::Opdracht1

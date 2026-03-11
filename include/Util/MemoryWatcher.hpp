@@ -1,12 +1,14 @@
 #include <cstddef>
 #include <Arduino.h>
+#include <unistd.h>
 
-// Linker symbols for RAM sections
-extern char _sdata;   // start of initialized data
-extern char _edata;   // end of initialized data
-extern char _sbss;    // start of BSS
-extern char _ebss;    // end of BSS
-extern char _estack;  // top of stack
+extern char _sdata;
+extern char _edata;
+extern char _sbss;
+extern char _ebss;
+extern char _estack;
+
+extern "C" char __heap_start__;
 
 namespace Util
 {
@@ -16,23 +18,11 @@ namespace Util
         const int TOTAL_MEMORY = 40960;
 
     public:
-        void PrintMemoryToSerial()
+        size_t freeMemory()
         {
             char stackVar;
-
-            // RAM boundaries
-            char* ramStart = &_ebss;        // free RAM starts after BSS
-            char* ramEnd   = &_estack;      // top of RAM
-
-            size_t totalRam = ramEnd - ramStart;          // total available RAM after static vars
-            size_t usedStack = ramEnd - &stackVar;       // stack used so far
-            size_t freeRam   = &stackVar - ramStart;     // approx free RAM
-
-            Serial.print("Mem:");
-
-            Serial.print(" | Total RAM: "); Serial.print(totalRam);
-            Serial.print(" | Free RAM: "); Serial.print(freeRam);
-            Serial.print(" | Stack used: "); Serial.println(usedStack);
+            char *heapTop = reinterpret_cast<char *>(sbrk(0));
+            return &stackVar - heapTop - 20000; // 20k subtracted because thats where the nucleo freezes, for some reason. so ill just assume thats where the memory ends
         }
     };
 }

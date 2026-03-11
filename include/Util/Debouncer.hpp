@@ -1,18 +1,17 @@
 #pragma once
 
-template <typename T>
 class Debouncer
 {
 private:
-    T currentValue;
-    T previousValue;
-    T pendingValue;
+    bool currentValue;
+    bool previousValue;
+    bool pendingValue;
     bool hasPending;
     unsigned long lastChangeTime;
     unsigned long thresholdMs;
 
 public:
-    Debouncer(unsigned long debounceMs = 200)
+    Debouncer(unsigned long debounceMs = 15)
         : currentValue(), previousValue(), pendingValue(),
           hasPending(false), lastChangeTime(0), thresholdMs(debounceMs)
     {
@@ -25,11 +24,10 @@ public:
         lastChangeTime = millis();
     }
 
-    bool Update(T newValue)
+    bool Update(bool newValue)
     {
         unsigned long now = millis();
 
-        // New candidate value — restart the debounce window
         if (!hasPending || newValue != pendingValue)
         {
             pendingValue = newValue;
@@ -38,11 +36,9 @@ public:
             return false;
         }
 
-        // Candidate matches, but hasn't settled yet
         if ((now - lastChangeTime) < thresholdMs)
             return false;
 
-        // Settled — only commit if it actually changed
         hasPending = false;
         if (currentValue == pendingValue)
             return false;
@@ -52,6 +48,12 @@ public:
         return true;
     }
 
-    const T &Get() const { return currentValue; }
-    const T &Previous() const { return previousValue; }
+    const bool &Get() const
+    {
+        return currentValue;
+    }
+    const bool &Previous() const
+    {
+        return previousValue;
+    }
 };

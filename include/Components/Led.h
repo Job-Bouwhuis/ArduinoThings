@@ -28,28 +28,6 @@ namespace Components
             pinMode(pin, OUTPUT);
         }
 
-        // Copy assignment
-        Led &operator=(const Led &other)
-        {
-            if (this != &other)
-            {
-                pin = other.pin;
-                pinMode(pin, OUTPUT);
-            }
-            return *this;
-        }
-
-        // Move assignment
-        Led &operator=(Led &&other) noexcept
-        {
-            if (this != &other)
-            {
-                pin = other.pin;
-                pinMode(pin, OUTPUT);
-            }
-            return *this;
-        }
-
         byte GetPin()
         {
             return pin;

@@ -17,16 +17,16 @@ namespace Components
     {
     private:
         byte pin = 0;
-        bool byPin = true; // true = read from pin, false = manual feed
+        bool byPin = true; // added for wada, so that i dont have to write another button specifically for the wada. im lazy
 
         bool currentState = false;
         bool previousState = false;
-        ButtonEdge edgeType = ButtonEdge::Falling;
+        ButtonEdge edgeType = ButtonEdge::Rising;
 
         bool pressedTick = false;
         bool releasedTick = false;
 
-        Debouncer<bool> debouncer;
+        Debouncer debouncer;
         const uint8_t debounceThreshold = 2;
 
         bool ReadRaw() const
@@ -95,6 +95,8 @@ namespace Components
 
         void UpdateState(bool raw)
         {
+            ResetFlags();
+
             if (debouncer.Update(raw))
             {
                 // Pressed
