@@ -3,7 +3,7 @@
 #include <TM1638plus.h>
 #include "Util/Debouncer.hpp"
 #include "Components/Component.h"
-#include "Util/util.h"
+#include "Util/Util.h"
 #include "Components/Button.hpp"
 
 namespace Components
@@ -15,7 +15,7 @@ namespace Components
             : tm(TM1638plus(strobe, clock, dio, false))
         {
             tm.displayBegin();
-            tm.displayText("helowrld");
+            tm.reset();
         }
 
         void Write(const char *text)

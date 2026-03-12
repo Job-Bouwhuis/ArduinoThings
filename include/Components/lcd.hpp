@@ -49,7 +49,7 @@ namespace Components
 
         void Clear()
         {
-            lcd.clear();
+            Write("                \n                ");
         }
 
         void SetCursor(uint8_t col, uint8_t row)

@@ -1,125 +1,112 @@
-// #pragma once
+#pragma once
+#include <Arduino.h>
+#include <list>
+#include <iostream>
 
-// #include <memory>
-// #include "Util/List.hpp"
-// #include <functional>
-// #include "Components/Led.h"
+namespace States
+{
+    class StateMachine;
 
-// class State;
-// using StatePtr = std::shared_ptr<State>;
+    class State
+    {
+    public:
+        State(StateMachine *sm, const String &n);
 
-// class Transition
-// {
-// public:
-//     Transition(StatePtr targetState, std::function<bool()> condition)
-//     {
-//         target = targetState;
-//         conditions.Add(condition);
-//     }
+        virtual ~State() = default;
 
-//     StatePtr target;
-//     Util::List<std::function<bool()>> conditions;
-//     std::function<void()> onTransition;
+        const String &GetName() const { return name; }
 
-//     bool CanTrigger() const
-//     {
-//         for (int i = 0; i < conditions.Count(); i++)
-//         {
-//             auto cond = conditions[i];
-//             if (!cond->operator()())
-//                 return false;
-//         }
-//         return true;
-//     }
-// };
+        void TransitionTo(const String &targetState);
 
-// class State
-// {
-// public:
-//     Util::List<Transition> transitions;
-//     std::weak_ptr<State> parent;
+        void AddAllowedTransition(State *s)
+        {
+            if (s)
+                allowedTransitions.push_back(s);
+        }
 
-//     std::function<void()> OnStateEnter;
-//     std::function<void()> OnStateExit;
+        const std::list<State *> &GetAllowedTransitions() const
+        {
+            return allowedTransitions;
+        }
 
-//     virtual ~State() = default;
-//     virtual void Tick(float dt) = 0;
+        virtual void OnEnter() {}
+        virtual void OnTick() {}
+        virtual void OnExit() {}
 
-//     void AddTransition(const Transition &t)
-//     {
-//         transitions.Add(t);
-//     }
+    protected:
+        StateMachine *machine;
 
-//     virtual void Enter()
-//     {
-//         if (OnStateEnter)
-//             OnStateEnter();
-//     }
+    private:
+        String name;
+        std::list<State *> allowedTransitions;
+    };
 
-//     virtual void Exit()
-//     {
-//         if (OnStateExit)
-//             OnStateExit();
-//     }
-// };
+    class StateMachine
+    {
+    public:
+        void RegisterState(State *state)
+        {
+            if (state)
+                states.push_back(state);
+        }
 
-// class TimedState : public State
-// {
-// protected:
-//     float timer = 0.0f;
-//     float duration;
+        void SetInitialState(const String &name)
+        {
+            currentState = FindState(name);
+            if (currentState)
+                currentState->OnEnter();
+        }
 
-// public:
-//     TimedState(float dur) : duration(dur) {}
+        void Tick()
+        {
+            if (currentState)
+                currentState->OnTick();
+        }
 
-//     void Enter() override
-//     {
-//         ResetTimer();
-//         State::Enter();
-//     }
+        State *GetCurrentState() const { return currentState; }
 
-//     void Tick(float dt) override
-//     {
-//         timer += dt;
-//     }
+        void RequestTransition(const String &targetState)
+        {
+            if (!currentState)
+                return;
+            for (State *s : currentState->GetAllowedTransitions())
+            {
+                if (s->GetName() == targetState)
+                {
+                    std::cout << "Transition: " << currentState->GetName()
+                              << " -> " << s->GetName() << "\n";
+                    currentState->OnExit();
+                    currentState = s;
+                    currentState->OnEnter();
+                    return;
+                }
+            }
+        }
 
-//     bool IsTimeUp() const { return timer >= duration; }
-//     void ResetTimer() { timer = 0.0f; }
-// };
+    private:
+        State *FindState(const String &name)
+        {
+            for (State *s : states)
+                if (s->GetName() == name)
+                    return s;
+            return nullptr;
+        }
 
-// class StateMachine
-// {
-//     StatePtr currentState;
+        std::list<State *> states;
+        State *currentState{nullptr};
+    };
 
-// public:
-//     void SetInitialState(StatePtr state)
-//     {
-//         currentState = state;
-//         currentState->Enter();
-//     }
+    // ---- State method bodies go here, AFTER StateMachine is fully defined ----
 
-//     void Tick(float dt)
-//     {
-//         if (!currentState)
-//             return;
+    inline State::State(StateMachine *sm, const String &n) : machine(sm), name(n)
+    {
+        if (machine)
+            machine->RegisterState(this);
+    }
 
-//         for (auto &tPtr : currentState->transitions)
-//         {
-//             if (!tPtr)
-//                 continue;
-//             if (!tPtr->target)
-//                 continue;
-//             if (tPtr->CanTrigger())
-//             {
-//                 currentState->Exit();
-//                 currentState = tPtr->target;
-//                 currentState->Enter();
-//                 if (tPtr->onTransition)
-//                     tPtr->onTransition();
-//                 return;
-//             }
-//         }
-
-//         currentState->Tick(dt);
-//     }
-// };
+    inline void State::TransitionTo(const String &targetState)
+    {
+        if (machine)
+            machine->RequestTransition(targetState);
+    }
+}
