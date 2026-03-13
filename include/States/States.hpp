@@ -2,6 +2,9 @@
 #include <Arduino.h>
 #include <list>
 #include <iostream>
+#include "Components/WADA.hpp"
+
+extern Components::WADA *wada;
 
 namespace States
 {
@@ -30,7 +33,7 @@ namespace States
         }
 
         virtual void OnEnter() {}
-        virtual void OnTick() {}
+        virtual void Tick() {}
         virtual void OnExit() {}
 
     protected:
@@ -60,7 +63,7 @@ namespace States
         void Tick()
         {
             if (currentState)
-                currentState->OnTick();
+                currentState->Tick();
         }
 
         State *GetCurrentState() const { return currentState; }
@@ -69,14 +72,19 @@ namespace States
         {
             if (!currentState)
                 return;
+
             for (State *s : currentState->GetAllowedTransitions())
             {
                 if (s->GetName() == targetState)
                 {
-                    std::cout << "Transition: " << currentState->GetName()
-                              << " -> " << s->GetName() << "\n";
+                    Serial.printf("Transition: %s -> %s\n", currentState->GetName(), s->GetName());
                     currentState->OnExit();
                     currentState = s;
+
+                    // reset wada button events for next state.
+                    for (int i = 0; i < 8; i++)
+                        wada->GetButton(i)->OnClick.Clear();
+
                     currentState->OnEnter();
                     return;
                 }

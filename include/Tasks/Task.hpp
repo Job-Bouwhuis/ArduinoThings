@@ -27,9 +27,23 @@ namespace Tasks
     class Task
     {
     public:
+        bool deleteOnRemoved = true;
+
         virtual ~Task() = default;
         virtual void Tick() = 0;
         bool IsFinished() const { return __finished; }
+
+        inline void Stop()
+        {
+            __finished = true;
+        }
+
+        /// @brief honestly this isnt very safe, but it works for what im doing, so im happy with it
+        inline void OnRemoved()
+        {
+            if (deleteOnRemoved)
+                delete this;
+        }
 
     protected:
         int __coro_line = 0;

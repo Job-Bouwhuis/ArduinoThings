@@ -36,7 +36,6 @@ namespace Components
         void SetLed(byte pos, bool state)
         {
             tm.setLED(pos, state ? 1 : 0);
-            Serial.printf("%d=%d\n", pos, state);
         }
 
         void reset()

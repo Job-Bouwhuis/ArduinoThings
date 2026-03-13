@@ -32,6 +32,7 @@ namespace Tasks
 
                 if (t && t->IsFinished())
                 {
+                    t->OnRemoved();
                     it = tasks.erase(it);
                 }
                 else
