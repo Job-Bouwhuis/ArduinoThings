@@ -180,8 +180,7 @@ namespace States
 
         void OnExit() override
         {
-            lcdTask->Stop();
-            wadaTask->Stop();
+            lcd->Clear();
         }
     };
 }

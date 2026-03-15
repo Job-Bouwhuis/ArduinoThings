@@ -15,14 +15,14 @@ Components::Lcd *lcd = new Components::Lcd(0x27, 16, 2);
 Components::Potentiometer *pot = new Components::Potentiometer(A0);
 Components::Buzzer *buzzer = new Components::Buzzer(D9);
 
-Components::Button *wadaButton1 = nullptr;
-Components::Button *wadaButton2 = nullptr;
-Components::Button *wadaButton3 = nullptr;
-Components::Button *wadaButton4 = nullptr;
-Components::Button *wadaButton5 = nullptr;
-Components::Button *wadaButton6 = nullptr;
-Components::Button *wadaButton7 = nullptr;
-Components::Button *wadaButton8 = nullptr;
+Components::Button *wadaButton1 = wada->GetButton(0);
+Components::Button *wadaButton2 = wada->GetButton(1);
+Components::Button *wadaButton3 = wada->GetButton(2);
+Components::Button *wadaButton4 = wada->GetButton(3);
+Components::Button *wadaButton5 = wada->GetButton(4);
+Components::Button *wadaButton6 = wada->GetButton(5);
+Components::Button *wadaButton7 = wada->GetButton(6);
+Components::Button *wadaButton8 = wada->GetButton(7);
 
 Tasks::TaskManager tasks;
 States::StateMachine stateMachine;
@@ -33,15 +33,6 @@ void setup()
   lcd->Init();
   lcd->Clear();
   lcd->Backlight(false);
-
-  wadaButton1 = wada->GetButton(0);
-  wadaButton2 = wada->GetButton(1);
-  wadaButton3 = wada->GetButton(2);
-  wadaButton4 = wada->GetButton(3);
-  wadaButton5 = wada->GetButton(4);
-  wadaButton6 = wada->GetButton(5);
-  wadaButton7 = wada->GetButton(6);
-  wadaButton8 = wada->GetButton(7);
 
   CharacterCreator c;
   c.Create(lcd);
@@ -67,6 +58,8 @@ void setup()
   stateMachine.RegisterState(game1);
 
   mainmenu->AddAllowedTransition(game1);
+  game1->AddAllowedTransition(mainmenu);
+  game1->AddAllowedTransition(game1);
 
   stateMachine.SetInitialState("mainmenu");
 }

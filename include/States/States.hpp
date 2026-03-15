@@ -3,8 +3,10 @@
 #include <list>
 #include <iostream>
 #include "Components/WADA.hpp"
+#include "Components/lcd.hpp"
 
 extern Components::WADA *wada;
+extern Components::Lcd *lcd;
 
 namespace States
 {
@@ -82,13 +84,15 @@ namespace States
                     currentState = s;
 
                     // reset wada button events for next state.
-                    for (int i = 0; i < 8; i++)
-                        wada->GetButton(i)->OnClick.Clear();
+                    wada->ClearButtonEvents();
 
                     currentState->OnEnter();
                     return;
                 }
             }
+
+            Serial.println("Transition not allowed!");
+            lcd->Write<true>("Trans Not Alowd:\n#str", targetState);
         }
 
     private:

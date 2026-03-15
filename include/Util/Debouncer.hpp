@@ -11,7 +11,7 @@ private:
     unsigned long thresholdMs;
 
 public:
-    Debouncer(unsigned long debounceMs = 15)
+    Debouncer(unsigned long debounceMs = 25)
         : currentValue(), previousValue(), pendingValue(),
           hasPending(false), lastChangeTime(0), thresholdMs(debounceMs)
     {

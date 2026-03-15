@@ -23,6 +23,22 @@ namespace Components
             tm.displayText(text);
         }
 
+        void ClearButtonEvents()
+        {
+            for (int i = 0; i < 8; i++)
+                GetButton(i)->OnClick.Clear();
+        }
+
+        void WriteByteAsBits(byte num)
+        {
+            char bits[9];
+            for (byte i = 0; i < 8; ++i)
+                bits[i] = ((num >> (7 - i)) & 1) ? '1' : '0';
+            bits[8] = '\0';
+
+            Write(bits);
+        }
+
         void Write(unsigned long num)
         {
             tm.displayIntNum(num);

@@ -5,17 +5,17 @@
 #include <memory>
 
 #define ULONG_MAX 4294967295
+#define MUSIC_VOICES 1
+#define EFFECT_VOICES 5
+#define MAX_VOICES (MUSIC_VOICES + EFFECT_VOICES)
+#define DEFAULT_MUSIC_VOLUME 96
+#define DEFAULT_EFFECT_VOLUME 255
+
 namespace Components
 {
     class Buzzer : public Component
     {
     public:
-        static constexpr size_t MUSIC_VOICES = 1;
-        static constexpr size_t EFFECT_VOICES = 5;
-        static constexpr size_t MAX_VOICES = MUSIC_VOICES + EFFECT_VOICES;
-        static constexpr byte DEFAULT_MUSIC_VOLUME = 96;
-        static constexpr byte DEFAULT_EFFECT_VOLUME = 255;
-
         Buzzer(byte pin)
             : pin(pin),
               musicMasterVolume(DEFAULT_MUSIC_VOLUME),
@@ -29,13 +29,14 @@ namespace Components
 
             for (size_t i = 0; i < MAX_VOICES; ++i)
             {
-                voices[i].active = false;
-                voices[i].frequency = 0;
-                voices[i].periodMicros = 0;
-                voices[i].lastToggle = 0;
-                voices[i].state = false;
-                voices[i].endTimeMs = 0;
-                voices[i].volume = 0;
+                tones[i].active = false;
+                tones[i].frequency = 0;
+                tones[i].periodMicros = 0;
+                tones[i].lastToggle = 0;
+                tones[i].state = false;
+                tones[i].endTimeMs = 0;
+                tones[i].startTimeMs = 0;
+                tones[i].volume = 0;
             }
         }
 
@@ -52,48 +53,66 @@ namespace Components
                 }
             }
 
-            int mix = 0;
-            bool anyActive = false;
-
+            // expire tones
             for (size_t i = 0; i < MAX_VOICES; ++i)
             {
-                Voice &v = voices[i];
-
-                if (!v.active)
+                Tone &t = tones[i];
+                if (!t.active)
                     continue;
 
-                anyActive = true;
-
-                if (v.endTimeMs != 0 && nowMillis >= v.endTimeMs)
+                if (t.endTimeMs != 0 && nowMillis >= t.endTimeMs)
                 {
-                    v.active = false;
-                    v.frequency = 0;
-                    v.periodMicros = 0;
-                    v.state = false;
-                    continue;
+                    t.active = false;
+                    t.frequency = 0;
+                    t.periodMicros = 0;
+                    t.state = false;
                 }
+            }
 
-                if (v.periodMicros > 0)
+            // select single tone to play (effects override background)
+            size_t selectedIndex = MAX_VOICES;
+            for (size_t i = MUSIC_VOICES; i < MAX_VOICES; ++i)
+            {
+                Tone &t = tones[i];
+                if (!t.active)
+                    continue;
+                if (selectedIndex == MAX_VOICES)
+                    selectedIndex = i;
+                else
                 {
-                    unsigned long half = v.periodMicros >> 1;
-                    while ((nowMicros - v.lastToggle) >= half)
+                    Tone &best = tones[selectedIndex];
+                    if (t.volume > best.volume ||
+                        (t.volume == best.volume && t.startTimeMs > best.startTimeMs))
                     {
-                        v.lastToggle += half;
-                        v.state = !v.state;
+                        selectedIndex = i;
                     }
                 }
+            }
 
-                mix += (v.state ? (int)v.volume : -(int)v.volume);
+            // fallback to music tone
+            if (selectedIndex == MAX_VOICES)
+            {
+                if (tones[0].active)
+                    selectedIndex = 0;
             }
 
             bool newState = false;
-            if (anyActive)
+
+            if (selectedIndex != MAX_VOICES)
             {
-                newState = (mix > 0);
-            }
-            else
-            {
-                newState = false;
+                Tone &t = tones[selectedIndex];
+
+                if (t.periodMicros > 0)
+                {
+                    unsigned long half = t.periodMicros >> 1;
+                    while ((nowMicros - t.lastToggle) >= half)
+                    {
+                        t.lastToggle += half;
+                        t.state = !t.state;
+                    }
+                }
+
+                newState = (t.state && t.volume > 0);
             }
 
             if (newState != outputState)
@@ -112,20 +131,19 @@ namespace Components
             if (frequency <= 0)
                 return;
 
-            size_t idx = 0;
-            Voice &v = voices[idx];
-
-            v.active = true;
-            v.frequency = frequency;
-            v.periodMicros = (frequency > 0) ? (1000000UL / (unsigned long)frequency) : 0;
-            v.lastToggle = (v.periodMicros > 0) ? (micros() - (v.periodMicros >> 1)) : micros();
-            v.state = false;
-            v.endTimeMs = (durationMs > 0) ? (millis() + durationMs) : 0;
+            Tone &t = tones[0]; // background tone is always index 0
+            t.active = true;
+            t.frequency = frequency;
+            t.periodMicros = (frequency > 0) ? (1000000UL / (unsigned long)frequency) : 0;
+            t.lastToggle = (t.periodMicros > 0) ? (micros() - (t.periodMicros >> 1)) : micros();
+            t.state = false;
+            t.endTimeMs = (durationMs > 0) ? (millis() + durationMs) : 0;
+            t.startTimeMs = millis();
 
             unsigned int scaled = (unsigned int)relativeVolume * (unsigned int)musicMasterVolume;
-            v.volume = (byte)(scaled >> 8);
-            if (v.volume == 0 && scaled > 0)
-                v.volume = 1;
+            t.volume = (byte)(scaled >> 8);
+            if (t.volume == 0 && scaled > 0)
+                t.volume = 1;
         }
 
         void PlayEffectTone(int frequency, unsigned long durationMs, byte relativeVolume = 255)
@@ -133,61 +151,64 @@ namespace Components
             if (frequency <= 0)
                 return;
 
+            // find free effect slot
             for (size_t i = MUSIC_VOICES; i < MAX_VOICES; ++i)
             {
-                Voice &v = voices[i];
-                if (!v.active)
+                Tone &t = tones[i];
+                if (!t.active)
                 {
-                    v.active = true;
-                    v.frequency = frequency;
-                    v.periodMicros = (frequency > 0) ? (1000000UL / (unsigned long)frequency) : 0;
-                    v.lastToggle = (v.periodMicros > 0) ? (micros() - (v.periodMicros >> 1)) : micros();
-                    v.state = false;
-                    v.endTimeMs = (durationMs > 0) ? (millis() + durationMs) : 0;
+                    t.active = true;
+                    t.frequency = frequency;
+                    t.periodMicros = (frequency > 0) ? (1000000UL / (unsigned long)frequency) : 0;
+                    t.lastToggle = (t.periodMicros > 0) ? (micros() - (t.periodMicros >> 1)) : micros();
+                    t.state = false;
+                    t.endTimeMs = (durationMs > 0) ? (millis() + durationMs) : 0;
+                    t.startTimeMs = millis();
 
                     unsigned int scaled = (unsigned int)relativeVolume * (unsigned int)effectMasterVolume;
-                    v.volume = (byte)(scaled >> 8);
-                    if (v.volume == 0 && scaled > 0)
-                        v.volume = 1;
+                    t.volume = (byte)(scaled >> 8);
+                    if (t.volume == 0 && scaled > 0)
+                        t.volume = 1;
                     return;
                 }
             }
 
+            // steal oldest effect if needed
             size_t stealIndex = MUSIC_VOICES;
             unsigned long oldestEnd = ULONG_MAX;
             for (size_t i = MUSIC_VOICES; i < MAX_VOICES; ++i)
             {
-                if (voices[i].endTimeMs < oldestEnd)
+                if (tones[i].endTimeMs < oldestEnd)
                 {
-                    oldestEnd = voices[i].endTimeMs;
+                    oldestEnd = tones[i].endTimeMs;
                     stealIndex = i;
                 }
             }
 
-            Voice &sv = voices[stealIndex];
-            sv.active = true;
-            sv.frequency = frequency;
-            sv.periodMicros = (frequency > 0) ? (1000000UL / (unsigned long)frequency) : 0;
-            sv.lastToggle = (sv.periodMicros > 0) ? (micros() - (sv.periodMicros >> 1)) : micros();
-            sv.state = false;
-            sv.endTimeMs = (durationMs > 0) ? (millis() + durationMs) : 0;
+            Tone &t = tones[stealIndex];
+            t.active = true;
+            t.frequency = frequency;
+            t.periodMicros = (frequency > 0) ? (1000000UL / (unsigned long)frequency) : 0;
+            t.lastToggle = (t.periodMicros > 0) ? (micros() - (t.periodMicros >> 1)) : micros();
+            t.state = false;
+            t.endTimeMs = (durationMs > 0) ? (millis() + durationMs) : 0;
+            t.startTimeMs = millis();
 
             unsigned int scaled = (unsigned int)relativeVolume * (unsigned int)effectMasterVolume;
-            sv.volume = (byte)(scaled >> 8);
-            if (sv.volume == 0 && scaled > 0)
-                sv.volume = 1;
+            t.volume = (byte)(scaled >> 8);
+            if (t.volume == 0 && scaled > 0)
+                t.volume = 1;
         }
 
         void StopAll()
         {
             for (size_t i = 0; i < MAX_VOICES; ++i)
-                voices[i].active = false;
+                tones[i].active = false;
 
             StopMusicTrack();
             digitalWrite(pin, LOW);
         }
 
-        // music track API (background)
         void PlayMusicTrack(const uint16_t (&frequencies)[], const uint16_t (&durations)[], size_t length, bool loop = false)
         {
             StopMusicTrack();
@@ -207,10 +228,9 @@ namespace Components
                 activeMusicTrack.reset();
             }
 
-            // stop music voice(s)
             for (size_t i = 0; i < MUSIC_VOICES; ++i)
             {
-                voices[i].active = false;
+                tones[i].active = false;
             }
         }
 
@@ -219,34 +239,25 @@ namespace Components
             return activeMusicTrack && activeMusicTrack->playing;
         }
 
-        // volume controls
-        void SetMusicMasterVolume(byte volume)
-        {
-            musicMasterVolume = volume;
-        }
-
-        void SetEffectMasterVolume(byte volume)
-        {
-            effectMasterVolume = volume;
-        }
-
+        void SetMusicMasterVolume(byte volume) { musicMasterVolume = volume; }
+        void SetEffectMasterVolume(byte volume) { effectMasterVolume = volume; }
         byte GetMusicMasterVolume() const { return musicMasterVolume; }
         byte GetEffectMasterVolume() const { return effectMasterVolume; }
 
     private:
-        struct Voice
+        struct Tone
         {
             bool active;
             int frequency;
             unsigned long periodMicros;
             unsigned long lastToggle;
             bool state;
-            // 0 = infinite
             unsigned long endTimeMs;
+            unsigned long startTimeMs;
             byte volume;
         };
 
-        Voice voices[MAX_VOICES];
+        Tone tones[MAX_VOICES];
 
         byte pin;
         byte musicMasterVolume;
@@ -303,14 +314,12 @@ namespace Components
             if (activeMusicTrack->index >= activeMusicTrack->length)
             {
                 if (activeMusicTrack->loop)
-                {
                     activeMusicTrack->index = 0;
-                }
                 else
                 {
                     activeMusicTrack->playing = false;
                     for (size_t i = 0; i < MUSIC_VOICES; ++i)
-                        voices[i].active = false;
+                        tones[i].active = false;
                     return;
                 }
             }
@@ -322,14 +331,9 @@ namespace Components
                 dur -= NOTE_GAP_MS;
 
             if (freq == 0)
-            {
-                // rest note
-                voices[0].active = false;
-            }
+                tones[0].active = false;
             else
-            {
                 PlayBackgroundTone((int)freq, (unsigned long)dur, 255);
-            }
 
             activeMusicTrack->noteEndTimeMs = millis() + activeMusicTrack->durations[activeMusicTrack->index];
             activeMusicTrack->index++;
