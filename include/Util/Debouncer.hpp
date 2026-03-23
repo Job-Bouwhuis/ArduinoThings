@@ -28,7 +28,7 @@ public:
     {
         unsigned long now = millis();
 
-        if (!hasPending || newValue != pendingValue)
+        if (!hasPending && newValue != pendingValue)
         {
             pendingValue = newValue;
             hasPending = true;

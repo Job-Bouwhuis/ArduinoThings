@@ -2,6 +2,7 @@
 #include "Util/CharacterCreator.hpp"
 #include "States/MainMenuState.hpp"
 #include "States/Game1.hpp"
+#include "States/Game2.hpp"
 
 // catch sticks horizontal (one stick per caracter line)
 // dino game 2 rows
@@ -26,6 +27,7 @@ Components::Button *wadaButton8 = wada->GetButton(7);
 
 Tasks::TaskManager tasks;
 States::StateMachine stateMachine;
+States::Replay* replayState;
 
 void setup()
 {
@@ -56,18 +58,36 @@ void setup()
 
   Games::Game1 *game1 = new Games::Game1(&stateMachine);
   stateMachine.RegisterState(game1);
-
-  mainmenu->AddAllowedTransition(game1);
-  game1->AddAllowedTransition(mainmenu);
   game1->AddAllowedTransition(game1);
 
+  Games::Game2 *game2 = new Games::Game2(&stateMachine);
+  stateMachine.RegisterState(game2);
+  game2->AddAllowedTransition(game2);
+
+  mainmenu->AddAllowedTransition(game1);
+  mainmenu->AddAllowedTransition(game2);
+
+  game1->AddAllowedTransition(mainmenu);
+  game2->AddAllowedTransition(mainmenu);
+
+  replayState = new States::Replay(&stateMachine);
+  replayState->AddAllowedTransition(mainmenu);
+  replayState->AddAllowedTransition(game1);
+  replayState->AddAllowedTransition(game2);
+
+  game1->AddAllowedTransition(replayState);
+  game2->AddAllowedTransition(replayState);
+
   stateMachine.SetInitialState("mainmenu");
+
+
+
 }
 
 void loop()
 {
-  tasks.Tick();
   buzzer->Tick();
   userButton->Tick();
   wada->Tick();
+  tasks.Tick();
 }

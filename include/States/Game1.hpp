@@ -1,9 +1,11 @@
 #pragma once
+
 #include "Util/Includes.h"
 #include <random>
 #include <chrono>
 
 #define MAX_ROUNDS 4
+
 
 namespace Games
 {
@@ -39,54 +41,56 @@ namespace Games
         {
             wadaButton1->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         secondsLeft = 1;
+                                         if (secondsLeft > 1)
+                                             secondsLeft = 1;
                                          //
                                      });
 
             wadaButton2->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer |= 0b1000000;
+                                         answer ^= 0b1000000;
                                          wada->WriteByteAsBits(answer);
                                          //
                                      });
 
             wadaButton3->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer |= 0b0100000;
+                                         answer ^= 0b0100000;
                                          wada->WriteByteAsBits(answer);
                                          //
                                      });
 
             wadaButton4->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer |= 0b0010000;
+                                         answer ^= 0b0010000;
                                          wada->WriteByteAsBits(answer);
                                          //
                                      });
 
             wadaButton5->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer |= 0b0001000;
+                                         answer ^= 0b0001000;
                                          wada->WriteByteAsBits(answer);
                                          //
                                      });
 
             wadaButton6->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer |= 0b0000100;
+                                         answer ^= 0b0000100;
                                          wada->WriteByteAsBits(answer);
                                          //
                                      });
 
             wadaButton7->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer |= 0b0000010;
+                                         answer ^= 0b0000010;
                                          wada->WriteByteAsBits(answer);
                                          //
                                      });
+
             wadaButton8->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer |= 0b0000001;
+                                         answer ^= 0b0000001;
                                          wada->WriteByteAsBits(answer);
                                          //
                                      });
@@ -170,32 +174,10 @@ namespace Games
 
                 CoroWait(3000);
                 lcd->Clear();
-                lcd->Write("Replay: Btn1\nExit: Btn2");
-
-                Serial.println("yadaaaa");
-
-                wada->ClearButtonEvents();
-
-                wadaButton1->OnClick.Add([this](Components::Button *btn)
-                                         {
-                                             Serial.println("i have been pressed!");
-                                             Stop();
-                                             stateMachine.RequestTransition("game1");
-                                             //
-                                         });
-
-                wadaButton2->OnClick.Add([this](Components::Button *btn)
-                                         {
-                                             Serial.println("i also have been pressed!");
-                                             Stop();
-                                             stateMachine.RequestTransition("mainmenu");
-                                             //
-                                         });
-
-                CoroYieldOnce();
-                while (1)
-                    CoroWait(100);
                 CoroEnd();
+
+                replayState->SetReplayState("game1");
+                stateMachine.RequestTransition("replay");
             }
 
         private:
@@ -205,9 +187,9 @@ namespace Games
         void SetSeconds()
         {
             if (round < 3)
-                secondsLeft = 30;
+                secondsLeft = 60;
             else
-                secondsLeft = 15;
+                secondsLeft = 30;
         }
         void GenerateRandomNumber()
         {

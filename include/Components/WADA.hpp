@@ -69,9 +69,8 @@ namespace Components
             auto buttonStates = tm.readButtons();
             for (int i = 0; i < 8; i++)
             {
-                bool cur = buttonStates & 0x01;
-                buttons[i].UpdateState(cur);
-                buttonStates >>= 1;
+                auto v = buttonStates & (1 << i);
+                buttons[i].UpdateState(v);
             }
         }
 

@@ -1,5 +1,5 @@
 #pragma once
-#include <arduino.h>
+#include <Arduino.h>
 
 /// @brief a number that only counts to eight
 struct eight

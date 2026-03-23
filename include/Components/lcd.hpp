@@ -15,6 +15,7 @@
 #define MAX_CUSTOM (uint8_t)8
 #define MAX_REGISTRY (uint8_t)32
 #define UNASSIGNED_SLOT (uint8_t)0xFF
+#define SAFE_BUF (uint8_t)128
 
 namespace Components
 {
@@ -35,6 +36,11 @@ namespace Components
             }
         }
 
+        void writeKatakanaByte(uint8_t byte)
+        {
+            lcd.send(byte, 1);
+        }
+
         void Init()
         {
             lcd.init();
@@ -53,10 +59,6 @@ namespace Components
                 lcd.cursor_on();
             else
                 lcd.cursor_off();
-        }
-
-        void graph(byte row, byte col, byte lengthInCharacters, byte pixelColEnd)
-        {
         }
 
         void Clear()
@@ -134,13 +136,12 @@ namespace Components
             uint8_t uniqueIndices[MAX_CUSTOM];
             uint8_t uniqueCount = 0;
 
-            const size_t SAFE_BUF = 128;
             uint8_t outBufType[SAFE_BUF];
             char outBufChar[SAFE_BUF];
             uint8_t outBufCustomIndex[SAFE_BUF];
             size_t outLen = 0;
 
-            ParseTextToBuffers<SAFE_BUF>(text, argArray, ARG_COUNT, argIndex,
+            ParseTextToBuffers(text, argArray, ARG_COUNT, argIndex,
                                          uniqueIndices, uniqueCount,
                                          outBufType, outBufChar, outBufCustomIndex, outLen);
 
@@ -150,7 +151,7 @@ namespace Components
                 return;
             }
 
-            RenderBuffers<ALLOW_WRAP, SAFE_BUF>(outBufType, outBufChar, outBufCustomIndex, outLen,
+            RenderBuffers<ALLOW_WRAP>(outBufType, outBufChar, outBufCustomIndex, outLen,
                                                 uniqueIndices, uniqueCount);
         }
 
@@ -176,7 +177,7 @@ namespace Components
         template <typename T>
         String ArgToString(T v) { return String(v); }
 
-        int FindRegistryIndexByName(const String &name)
+        short FindRegistryIndexByName(const String &name)
         {
             for (uint8_t i = 0; i < MAX_REGISTRY; ++i)
             {
@@ -310,7 +311,6 @@ namespace Components
             return true;
         }
 
-        template <size_t SAFE_BUF>
         void ParseTextToBuffers(const String &text, String argArray[], size_t ARG_COUNT, size_t &argIndex,
                                 uint8_t uniqueIndices[], uint8_t &uniqueCount,
                                 uint8_t outBufType[], char outBufChar[], uint8_t outBufCustomIndex[], size_t &outLen)
@@ -356,7 +356,7 @@ namespace Components
                             }
                             uniqueIndices[uniqueCount++] = regIdx;
                         }
-                        AppendCustomToBuf((uint8_t)regIdx, outBufType, outBufChar, outBufCustomIndex, outLen, SAFE_BUF);
+                        AppendCustomToBuf(regIdx, outBufType, outBufChar, outBufCustomIndex, outLen, SAFE_BUF);
                     }
                     i = j + 1;
                     continue;
@@ -514,7 +514,7 @@ namespace Components
             ++outLen;
         }
 
-        template <bool ALLOW_WRAP, size_t SAFE_BUF>
+        template <bool ALLOW_WRAP>
         void RenderBuffers(uint8_t outBufType[], char outBufChar[], uint8_t outBufCustomIndex[], size_t outLen,
                            uint8_t uniqueIndices[], uint8_t uniqueCount)
         {
@@ -527,9 +527,9 @@ namespace Components
                 bool active = false;
                 uint8_t startLine = 0;
                 bool nextCleared = false;
-                uint8_t *bufType = nullptr;   // CTRL_PLAIN / CTRL_CUSTOM or 0xFF = untouched
-                char *bufChar = nullptr;      // for plain chars
-                uint8_t *bufCustom = nullptr; // for custom indices
+                uint8_t *bufType = nullptr;
+                char *bufChar = nullptr;
+                uint8_t *bufCustom = nullptr; 
             } pendingUnique;
             pendingUnique.active = false;
 
@@ -602,7 +602,6 @@ namespace Components
                         {
                             if (currentLine == 0 && rows > 1)
                             {
-                                // before switching line, flush any pending buffer for the line we're leaving
                                 if (pendingUnique.active && !pendingUnique.nextCleared && pendingUnique.startLine != 1)
                                 {
                                     flushPending();
@@ -682,7 +681,6 @@ namespace Components
                 }
                 else if (t == CTRL_NEWLINE_TOGGLE)
                 {
-                    // flush pending if it applies to the line we're leaving
                     if (pendingUnique.active && pendingUnique.startLine == currentLine)
                         flushPending();
 
@@ -717,10 +715,8 @@ namespace Components
                 }
                 else if (t == CTRL_UNIQUE)
                 {
-                    // start buffering this line instead of clearing and writing immediately
                     startPending();
                     currentCol = 0;
-                    // do not set lcd cursor yet — we'll write the full line when flushing
                 }
                 else if (t == CTRL_RIGHTALIGN)
                 {
@@ -750,7 +746,6 @@ namespace Components
                 }
             }
 
-            // flush any remaining pending buffer
             if (pendingUnique.active)
                 flushPending();
         }
