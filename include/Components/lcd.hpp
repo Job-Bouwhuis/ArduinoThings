@@ -36,11 +36,6 @@ namespace Components
             }
         }
 
-        void writeKatakanaByte(uint8_t byte)
-        {
-            lcd.send(byte, 1);
-        }
-
         void Init()
         {
             lcd.init();
@@ -142,8 +137,8 @@ namespace Components
             size_t outLen = 0;
 
             ParseTextToBuffers(text, argArray, ARG_COUNT, argIndex,
-                                         uniqueIndices, uniqueCount,
-                                         outBufType, outBufChar, outBufCustomIndex, outLen);
+                               uniqueIndices, uniqueCount,
+                               outBufType, outBufChar, outBufCustomIndex, outLen);
 
             if (!AllocateSlotsForUniqueRegistryList(uniqueIndices, uniqueCount))
             {
@@ -152,7 +147,7 @@ namespace Components
             }
 
             RenderBuffers<ALLOW_WRAP>(outBufType, outBufChar, outBufCustomIndex, outLen,
-                                                uniqueIndices, uniqueCount);
+                                      uniqueIndices, uniqueCount);
         }
 
     private:
@@ -529,7 +524,7 @@ namespace Components
                 bool nextCleared = false;
                 uint8_t *bufType = nullptr;
                 char *bufChar = nullptr;
-                uint8_t *bufCustom = nullptr; 
+                uint8_t *bufCustom = nullptr;
             } pendingUnique;
             pendingUnique.active = false;
 

@@ -3,6 +3,8 @@
 #include "States/MainMenuState.hpp"
 #include "States/Game1.hpp"
 #include "States/Game2.hpp"
+#include "States/Game3.hpp"
+#include "States/Game4.hpp"
 
 // catch sticks horizontal (one stick per caracter line)
 // dino game 2 rows
@@ -27,7 +29,7 @@ Components::Button *wadaButton8 = wada->GetButton(7);
 
 Tasks::TaskManager tasks;
 States::StateMachine stateMachine;
-States::Replay* replayState;
+States::Replay *replayState;
 
 void setup()
 {
@@ -64,24 +66,37 @@ void setup()
   stateMachine.RegisterState(game2);
   game2->AddAllowedTransition(game2);
 
-  mainmenu->AddAllowedTransition(game1);
-  mainmenu->AddAllowedTransition(game2);
+  Games::Game3 *game3 = new Games::Game3(&stateMachine);
+  stateMachine.RegisterState(game3);
+  game3->AddAllowedTransition(game3);
 
-  game1->AddAllowedTransition(mainmenu);
-  game2->AddAllowedTransition(mainmenu);
+  Games::Game4 *game4 = new Games::Game4(&stateMachine);
+  stateMachine.RegisterState(game4);
+  game4->AddAllowedTransition(game4);
 
   replayState = new States::Replay(&stateMachine);
   replayState->AddAllowedTransition(mainmenu);
   replayState->AddAllowedTransition(game1);
   replayState->AddAllowedTransition(game2);
+  replayState->AddAllowedTransition(game3);
+  replayState->AddAllowedTransition(game4);
+
+  mainmenu->AddAllowedTransition(game1);
+  mainmenu->AddAllowedTransition(game2);
+  mainmenu->AddAllowedTransition(game3);
+  mainmenu->AddAllowedTransition(game4);
+
+  game1->AddAllowedTransition(mainmenu);
+  game2->AddAllowedTransition(mainmenu);
+  game3->AddAllowedTransition(mainmenu);
+  game4->AddAllowedTransition(mainmenu);
 
   game1->AddAllowedTransition(replayState);
   game2->AddAllowedTransition(replayState);
+  game3->AddAllowedTransition(replayState);
+  game4->AddAllowedTransition(replayState);
 
   stateMachine.SetInitialState("mainmenu");
-
-
-
 }
 
 void loop()
@@ -90,4 +105,5 @@ void loop()
   userButton->Tick();
   wada->Tick();
   tasks.Tick();
+  stateMachine.Tick();
 }

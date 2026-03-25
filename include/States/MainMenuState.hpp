@@ -26,7 +26,7 @@ namespace States
 
         public:
             void Tick() override
-            {                
+            {
                 CoroBegin();
 
                 while (1)
@@ -134,9 +134,6 @@ namespace States
         void OnEnter() override
         {
             lcd->Backlight(true);
-            
-            lcd->writeKatakanaByte(0b00111100);
-            delay(10000);
 
             wadaButton1->OnClick.Add([this](Components::Button *btn)
                                      {
