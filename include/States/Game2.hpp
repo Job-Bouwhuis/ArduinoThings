@@ -36,7 +36,7 @@ namespace Games
         private:
             const char *messages[15] = {
                 // basic
-                "アイウエオ      ",
+                "aアイウエオ      ",
                 "カキクケコ      ",
 
                 // dakuten

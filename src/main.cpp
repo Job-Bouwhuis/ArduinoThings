@@ -5,6 +5,7 @@
 #include "States/Game2.hpp"
 #include "States/Game3.hpp"
 #include "States/Game4.hpp"
+#define カ 1111
 
 // catch sticks horizontal (one stick per caracter line)
 // dino game 2 rows
@@ -33,11 +34,14 @@ States::Replay *replayState;
 
 void setup()
 {
-  Serial.begin(9600);
+
+  int a = カ;
+   Serial.begin(9600);
   lcd->Init();
   lcd->Clear();
-  lcd->Backlight(false);
-
+  lcd->Backlight(true);
+  int lives = 2;
+  
   CharacterCreator c;
   c.Create(lcd);
 
