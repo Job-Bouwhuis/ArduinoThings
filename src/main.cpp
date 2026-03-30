@@ -5,12 +5,6 @@
 #include "States/Game2.hpp"
 #include "States/Game3.hpp"
 #include "States/Game4.hpp"
-#define カ 1111
-
-// catch sticks horizontal (one stick per caracter line)
-// dino game 2 rows
-// binary converter
-// number scroller
 
 Components::Button *userButton = new Components::Button(USER_BTN);
 Components::WADA *wada = new Components::WADA(D3, D4, D5);
@@ -36,12 +30,11 @@ void setup()
 {
 
   int a = カ;
-   Serial.begin(9600);
+  Serial.begin(9600);
   lcd->Init();
   lcd->Clear();
   lcd->Backlight(true);
-  int lives = 2;
-  
+
   CharacterCreator c;
   c.Create(lcd);
 

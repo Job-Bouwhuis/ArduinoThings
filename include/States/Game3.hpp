@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Util/Includes.h"
+#include "Tasks/ExplainTask.hpp"
 #include <string>
 #include <vector>
 #include <random>
@@ -20,11 +21,27 @@ namespace Games
         {
             ResetGame();
             SetupButtons();
-            Render();
+            isPlaying = false;
+
+            tasks.AddTask(new Tasks::ExplainTask(
+                {
+                    "Avoid obstacles\nUse btn1/btn2",
+                    "Btn1 = up\nBtn2 = down",
+                },
+                1800,
+                [this]()
+                {
+                    isPlaying = true;
+                    lastTime = millis();
+                    Render();
+                }));
         }
 
         void Tick() override
         {
+            if (!isPlaying)
+                return;
+
             if (gameOver)
             {
                 if (!gameOverShown)
@@ -84,8 +101,9 @@ namespace Games
         static constexpr int PLAYER_COLUMN = 7;
         static constexpr int PLAYER_CHAR = 'O';
         static constexpr int OBSTACLE_CHAR = '#';
-        static constexpr int LANE_COUNT = 2;
-        static constexpr int SAFE_GAP = 4;
+        static constexpr int LANE_COUNT = 4;
+        static constexpr int SAFE_GAP = 6;
+        static constexpr int SPAWN_CHANCE_PERCENT = 35;
         static constexpr unsigned long STEP_DELAY = 500;
         static constexpr unsigned long GAME_OVER_DELAY = 2200;
         int lastSpawnedLane = -1;
@@ -96,6 +114,7 @@ namespace Games
 
         std::mt19937 generator{static_cast<uint32_t>(seed)};
         std::uniform_int_distribution<int> directionDist{0, 1};
+        std::uniform_int_distribution<int> spawnChanceDist{0, 99};
 
         struct Obstacle
         {
@@ -114,8 +133,12 @@ namespace Games
 
             laneDirections[0] = 0;
             laneDirections[1] = 0;
+            laneDirections[2] = 0;
+            laneDirections[3] = 0;
             spawnCooldowns[0] = 0;
             spawnCooldowns[1] = 0;
+            spawnCooldowns[2] = 0;
+            spawnCooldowns[3] = 0;
 
             unsigned long now = millis();
             time = 0;
@@ -127,47 +150,79 @@ namespace Games
         {
             wadaButton1->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         if (gameOver)
+                                         if (!isPlaying || gameOver)
                                              return;
 
-                                         playerRow = (playerRow == 0) ? 1 : 0;
-                                         buzzer->PlayEffectTone(1100, 60); });
+                                         if (playerRow > 0)
+                                         {
+                                             playerRow--;
+                                             buzzer->PlayEffectTone(1200, 60);
+                                         }
+                                         else
+                                         {
+                                             buzzer->PlayEffectTone(700, 45);
+                                         }
+                                     });
+
+            wadaButton2->OnClick.Add([this](Components::Button *btn)
+                                     {
+                                         if (!isPlaying || gameOver)
+                                             return;
+
+                                         if (playerRow < (LANE_COUNT - 1))
+                                         {
+                                             playerRow++;
+                                             buzzer->PlayEffectTone(1200, 60);
+                                         }
+                                         else
+                                         {
+                                             buzzer->PlayEffectTone(700, 45);
+                                         }
+                                     });
         }
 
         void StepGame()
         {
+            bool scoredThisTick = false;
+
             for (auto &obstacle : obstacles)
-            {
                 obstacle.column += obstacle.direction;
-            }
 
             for (int row = 0; row < LANE_COUNT; row++)
-            {
                 if (spawnCooldowns[row] > 0)
                     spawnCooldowns[row]--;
-            }
 
-            bool spawnedThisTick = false; // new flag
+            bool spawnedThisTick = false;
 
             for (int laneIndex = 0; laneIndex < LANE_COUNT; laneIndex++)
             {
                 int preferredLane = laneIndex;
 
                 if (directionDist(generator) == 0)
-                    preferredLane = 1 - playerRow;
+                    do preferredLane = generator() % LANE_COUNT;
+                    while (preferredLane == playerRow);
 
                 if (preferredLane == lastSpawnedLane && directionDist(generator) == 0)
-                    preferredLane = 1 - preferredLane;
+                    preferredLane = (preferredLane + 1) % LANE_COUNT;
 
                 if (IsLaneDangerous(playerRow))
-                    preferredLane = 1 - playerRow;
+                    for (int i = 0; i < LANE_COUNT; i++)
+                        if (!IsLaneDangerous(i))
+                        {
+                            preferredLane = i;
+                            break;
+                        }
 
                 if (!spawnedThisTick && spawnCooldowns[preferredLane] == 0)
                 {
+                    if (spawnChanceDist(generator) >= SPAWN_CHANCE_PERCENT)
+                        continue;
+
                     if (TrySpawnOnLane(preferredLane))
                     {
                         lastSpawnedLane = preferredLane;
                         spawnedThisTick = true;
+                        buzzer->PlayEffectTone(850, 25);
                     }
                 }
             }
@@ -178,9 +233,13 @@ namespace Games
                 {
                     obstacles.erase(obstacles.begin() + i);
                     score++;
+                    scoredThisTick = true;
                     wada->Write(score);
                 }
             }
+
+            if (scoredThisTick)
+                buzzer->PlayEffectTone(2000, 30);
 
             for (const auto &obstacle : obstacles)
             {
@@ -197,10 +256,8 @@ namespace Games
             }
 
             for (int row = 0; row < LANE_COUNT; row++)
-            {
                 if (!LaneHasObstacle(row))
                     laneDirections[row] = 0;
-            }
         }
 
         int TimeToReachPlayer(const Obstacle &obstacle) const
@@ -219,8 +276,7 @@ namespace Games
 
             for (int t = 0; t <= 6; t++)
             {
-                bool topBlocked = false;
-                bool bottomBlocked = false;
+                bool lanesBlocked[LANE_COUNT] = {false};
 
                 for (const auto &obstacle : obstacles)
                 {
@@ -228,21 +284,21 @@ namespace Games
                     if (arrivalTime != 0)
                         continue;
 
-                    if (obstacle.row == 0)
-                        topBlocked = true;
-                    else
-                        bottomBlocked = true;
+                    lanesBlocked[obstacle.row] = true;
                 }
 
                 if (newObstacleTime - t == 0)
-                {
-                    if (spawnRow == 0)
-                        topBlocked = true;
-                    else
-                        bottomBlocked = true;
-                }
+                    lanesBlocked[spawnRow] = true;
 
-                if (topBlocked && bottomBlocked)
+                bool allBlocked = true;
+                for (bool blocked : lanesBlocked)
+                    if (!blocked)
+                    {
+                        allBlocked = false;
+                        break;
+                    }
+
+                if (allBlocked)
                     return true;
             }
 
@@ -305,11 +361,8 @@ namespace Games
                     if (obstacle.column < nearestColumn)
                         nearestColumn = obstacle.column;
                 }
-                else
-                {
-                    if (obstacle.column > nearestColumn)
+                else if (obstacle.column > nearestColumn)
                         nearestColumn = obstacle.column;
-                }
             }
 
             if (!foundObstacle)
@@ -334,36 +387,68 @@ namespace Games
 
         void Render()
         {
-            std::string topRow(LCD_WIDTH, ' ');
-            std::string bottomRow(LCD_WIDTH, ' ');
+            std::string displayRow1 = "";
+            std::string displayRow2 = "";
+
+            char virtualLanes[LANE_COUNT][LCD_WIDTH];
+
+            for (int lane = 0; lane < LANE_COUNT; lane++)
+                for (int col = 0; col < LCD_WIDTH; col++)
+                    virtualLanes[lane][col] = ' ';
 
             for (const auto &obstacle : obstacles)
-            {
-                if (obstacle.column < 0 || obstacle.column >= LCD_WIDTH)
-                    continue;
+                if (obstacle.column >= 0 && obstacle.column < LCD_WIDTH)
+                    virtualLanes[obstacle.row][obstacle.column] = OBSTACLE_CHAR;
 
-                if (obstacle.row == 0)
-                    topRow[obstacle.column] = OBSTACLE_CHAR;
-                else
-                    bottomRow[obstacle.column] = OBSTACLE_CHAR;
+            // Place player
+            virtualLanes[playerRow][PLAYER_COLUMN] = PLAYER_CHAR;
+
+            for (int col = 0; col < LCD_WIDTH; col++)
+            {
+                char upper = virtualLanes[0][col];
+                char lower = virtualLanes[1][col];
+                displayRow1 += GetCombinedCharName(upper, lower);
+
+                upper = virtualLanes[2][col];
+                lower = virtualLanes[3][col];
+                displayRow2 += GetCombinedCharName(upper, lower);
             }
 
-            if (playerRow == 0)
-                topRow[PLAYER_COLUMN] = PLAYER_CHAR;
-            else
-                bottomRow[PLAYER_COLUMN] = PLAYER_CHAR;
+            String renderText = String(displayRow1.c_str()) + "\n" + String(displayRow2.c_str());
+            lcd->Write(renderText);
+        }
 
-            lcd->Write("#unique#str\n#str", topRow.c_str(), bottomRow.c_str());
+        std::string GetCombinedCharName(char upper, char lower) const
+        {
+            if (upper == ' ' && lower == ' ')
+                return "<ee>";
+            else if (upper == ' ' && lower == PLAYER_CHAR)
+                return "<ep>";
+            else if (upper == ' ' && lower == OBSTACLE_CHAR)
+                return "<eo>";
+            else if (upper == PLAYER_CHAR && lower == ' ')
+                return "<pe>";
+            else if (upper == PLAYER_CHAR && lower == OBSTACLE_CHAR)
+                return "<po>";
+            else if (upper == OBSTACLE_CHAR && lower == ' ')
+                return "<oe>";
+            else if (upper == OBSTACLE_CHAR && lower == PLAYER_CHAR)
+                return "<op>";
+            else if (upper == OBSTACLE_CHAR && lower == OBSTACLE_CHAR)
+                return "<oo>";
+
+            return "<ee>";
         }
 
         bool gameOver = false;
         bool gameOverShown = false;
+        bool isPlaying = false;
 
         int playerRow = 1;
         int score = 0;
 
-        int laneDirections[LANE_COUNT] = {0, 0};
-        int spawnCooldowns[LANE_COUNT] = {0, 0};
+        int laneDirections[LANE_COUNT] = {0, 0, 0, 0};
+        int spawnCooldowns[LANE_COUNT] = {0, 0, 0, 0};
 
         std::vector<Obstacle> obstacles;
 

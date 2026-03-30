@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Util/Includes.h"
+#include "Tasks/ExplainTask.hpp"
 #include <random>
 #include <chrono>
 
@@ -19,7 +20,15 @@ namespace Games
         void OnEnter() override
         {
             Reset();
-            tasks.AddTask(new ExplainTask(this));
+            tasks.AddTask(new Tasks::ExplainTask(
+                {
+                    "Use WADA Buttons\nbtn 1 to submit",
+                },
+                2500,
+                [this]()
+                {
+                    tasks.AddTask(new RoundTask(this));
+                }));
         }
 
     private:
@@ -43,79 +52,52 @@ namespace Games
                                      {
                                          if (secondsLeft > 1)
                                              secondsLeft = 1;
-                                         //
+                                         buzzer->PlayEffectTone(1400, 70);
                                      });
 
             wadaButton2->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer ^= 0b1000000;
-                                         wada->WriteByteAsBits(answer);
-                                         //
+                                         ToggleAnswerBit(0b1000000);
                                      });
 
             wadaButton3->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer ^= 0b0100000;
-                                         wada->WriteByteAsBits(answer);
-                                         //
+                                         ToggleAnswerBit(0b0100000);
                                      });
 
             wadaButton4->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer ^= 0b0010000;
-                                         wada->WriteByteAsBits(answer);
-                                         //
+                                         ToggleAnswerBit(0b0010000);
                                      });
 
             wadaButton5->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer ^= 0b0001000;
-                                         wada->WriteByteAsBits(answer);
-                                         //
+                                         ToggleAnswerBit(0b0001000);
                                      });
 
             wadaButton6->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer ^= 0b0000100;
-                                         wada->WriteByteAsBits(answer);
-                                         //
+                                         ToggleAnswerBit(0b0000100);
                                      });
 
             wadaButton7->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer ^= 0b0000010;
-                                         wada->WriteByteAsBits(answer);
-                                         //
+                                         ToggleAnswerBit(0b0000010);
                                      });
 
             wadaButton8->OnClick.Add([this](Components::Button *btn)
                                      {
-                                         answer ^= 0b0000001;
-                                         wada->WriteByteAsBits(answer);
-                                         //
+                                         ToggleAnswerBit(0b0000001);
                                      });
         }
 
-        class ExplainTask : public Tasks::Task
+        void ToggleAnswerBit(byte mask)
         {
-        public:
-            ExplainTask(Game1 *game) : game(game) {}
-
-            void Tick() override
-            {
-                CoroBegin();
-                buzzer->PlayEffectTone(800, 500);
-                lcd->Write("Use WADA Buttons\nbtn 1 to submit");
-                CoroWait(2500);
-                buzzer->PlayEffectTone(1000, 200);
-                buzzer->PlayEffectTone(1200, 350);
-                CoroEnd();
-                tasks.AddTask(new RoundTask(game));
-            }
-
-        private:
-            Game1 *game;
-        };
+            answer ^= mask;
+            wada->WriteByteAsBits(answer);
+            const bool isEnabled = (answer & mask) != 0;
+            buzzer->PlayEffectTone(isEnabled ? 1800 : 1000, 45);
+        }
 
         class RoundTask : public Tasks::Task
         {
@@ -132,6 +114,8 @@ namespace Games
                 {
                     if (game->lives == 0)
                         break;
+
+                    buzzer->PlayEffectTone(1500, 60);
 
                     lcd->Write("#cury#unique#num#rightalign\\#tries: #num/#num", 1, game->targetNum, game->lives, game->totalLives);
 
@@ -162,13 +146,15 @@ namespace Games
 
                 if (game->lives > 0)
                 {
-                    // buzzer->PlayMusicTrack(game->happy_frequencies, game->happy_durations, 7);
+                    buzzer->PlayEffectTone(1800, 160);
+                    buzzer->PlayEffectTone(2100, 220);
                     lcd->Write("You won!");
                     lcd->Write("#cury\\#Score: #num", 1, game->score);
                 }
                 else
                 {
-                    // buzzer->PlayMusicTrack(game->sad_frequencies, game->sad_durations, 6);
+                    buzzer->PlayEffectTone(900, 180);
+                    buzzer->PlayEffectTone(700, 260);
                     lcd->Write("You lost!\nAnswer #bin", game->targetNum);
                 }
 
