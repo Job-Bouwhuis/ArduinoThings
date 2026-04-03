@@ -2,6 +2,7 @@
 
 #include "Util/Includes.h"
 #include "Tasks/ExplainTask.hpp"
+#include "States/SessionResult.hpp"
 #include <string>
 #include <vector>
 #include <random>
@@ -66,8 +67,8 @@ namespace Games
                 if (now - gameOverStart >= GAME_OVER_DELAY)
                 {
                     lcd->Clear();
-                    replayState->SetReplayState("game3");
-                    stateMachine.RequestTransition("replay");
+                    States::PrepareGameResult("game3", score >= 25, score);
+                    stateMachine.RequestTransition("gameover");
                 }
 
                 return;
@@ -161,8 +162,7 @@ namespace Games
                                          else
                                          {
                                              buzzer->PlayEffectTone(700, 45);
-                                         }
-                                     });
+                                         } });
 
             wadaButton2->OnClick.Add([this](Components::Button *btn)
                                      {
@@ -177,8 +177,7 @@ namespace Games
                                          else
                                          {
                                              buzzer->PlayEffectTone(700, 45);
-                                         }
-                                     });
+                                         } });
         }
 
         void StepGame()
@@ -199,7 +198,8 @@ namespace Games
                 int preferredLane = laneIndex;
 
                 if (directionDist(generator) == 0)
-                    do preferredLane = generator() % LANE_COUNT;
+                    do
+                        preferredLane = generator() % LANE_COUNT;
                     while (preferredLane == playerRow);
 
                 if (preferredLane == lastSpawnedLane && directionDist(generator) == 0)
@@ -362,7 +362,7 @@ namespace Games
                         nearestColumn = obstacle.column;
                 }
                 else if (obstacle.column > nearestColumn)
-                        nearestColumn = obstacle.column;
+                    nearestColumn = obstacle.column;
             }
 
             if (!foundObstacle)

@@ -2,6 +2,7 @@
 
 #include "Util/Includes.h"
 #include "Tasks/ExplainTask.hpp"
+#include "States/SessionResult.hpp"
 #include <random>
 #include <chrono>
 
@@ -63,8 +64,8 @@ namespace Games
                 if (millis() - gameOverStart >= GAME_OVER_DELAY)
                 {
                     lcd->Clear();
-                    replayState->SetReplayState("game2");
-                    stateMachine.RequestTransition("replay");
+                    States::PrepareGameResult("game2", didWin, score);
+                    stateMachine.RequestTransition("gameover");
                 }
                 return;
             }
@@ -104,16 +105,52 @@ namespace Games
         };
 
         static constexpr KanaEntry kKanaList[] = {
-            {0b10110001, "a"}, {0b10110010, "i"}, {0b10110011, "u"}, {0b10110100, "e"}, {0b10110101, "o"},
-            {0b10110110, "ka"}, {0b10110111, "ki"}, {0b10111000, "ku"}, {0b10111001, "ke"}, {0b10111010, "ko"},
-            {0b10111011, "sa"}, {0b10111100, "shi"}, {0b10111101, "su"}, {0b10111110, "se"}, {0b10111111, "so"},
-            {0b11000000, "ta"}, {0b11000001, "chi"}, {0b11000010, "tsu"}, {0b11000011, "te"}, {0b11000100, "to"},
-            {0b11000101, "na"}, {0b11000110, "ni"}, {0b11000111, "nu"}, {0b11001000, "ne"}, {0b11001001, "no"},
-            {0b11001010, "ha"}, {0b11001011, "hi"}, {0b11001100, "fu"}, {0b11001101, "he"}, {0b11001110, "ho"},
-            {0b11001111, "ma"}, {0b11010000, "mi"}, {0b11010001, "mu"}, {0b11010010, "me"}, {0b11010011, "mo"},
-            {0b11010100, "ya"}, {0b11010101, "yu"}, {0b11010110, "yo"},
-            {0b11010111, "ra"}, {0b11011000, "ri"}, {0b11011001, "ru"}, {0b11011010, "re"}, {0b11011011, "ro"},
-            {0b11011100, "wa"}, {0b11011101, "wo"}, {0b11011110, "n"},
+            {0b10110001, "a"},
+            {0b10110010, "i"},
+            {0b10110011, "u"},
+            {0b10110100, "e"},
+            {0b10110101, "o"},
+            {0b10110110, "ka"},
+            {0b10110111, "ki"},
+            {0b10111000, "ku"},
+            {0b10111001, "ke"},
+            {0b10111010, "ko"},
+            {0b10111011, "sa"},
+            {0b10111100, "shi"},
+            {0b10111101, "su"},
+            {0b10111110, "se"},
+            {0b10111111, "so"},
+            {0b11000000, "ta"},
+            {0b11000001, "chi"},
+            {0b11000010, "tsu"},
+            {0b11000011, "te"},
+            {0b11000100, "to"},
+            {0b11000101, "na"},
+            {0b11000110, "ni"},
+            {0b11000111, "nu"},
+            {0b11001000, "ne"},
+            {0b11001001, "no"},
+            {0b11001010, "ha"},
+            {0b11001011, "hi"},
+            {0b11001100, "fu"},
+            {0b11001101, "he"},
+            {0b11001110, "ho"},
+            {0b11001111, "ma"},
+            {0b11010000, "mi"},
+            {0b11010001, "mu"},
+            {0b11010010, "me"},
+            {0b11010011, "mo"},
+            {0b11010100, "ya"},
+            {0b11010101, "yu"},
+            {0b11010110, "yo"},
+            {0b11010111, "ra"},
+            {0b11011000, "ri"},
+            {0b11011001, "ru"},
+            {0b11011010, "re"},
+            {0b11011011, "ro"},
+            {0b11011100, "wa"},
+            {0b11011101, "wo"},
+            {0b11011110, "n"},
         };
 
         void ResetGame()
@@ -152,8 +189,7 @@ namespace Games
 
                                          selectedOption = 0;
                                          buzzer->PlayEffectTone(1200, 60);
-                                         RenderQuestion();
-                                     });
+                                         RenderQuestion(); });
 
             wadaButton2->OnClick.Add([this](Components::Button *btn)
                                      {
@@ -162,8 +198,7 @@ namespace Games
 
                                          selectedOption = 1;
                                          buzzer->PlayEffectTone(1200, 60);
-                                         RenderQuestion();
-                                     });
+                                         RenderQuestion(); });
 
             wadaButton3->OnClick.Add([this](Components::Button *btn)
                                      {
@@ -180,8 +215,7 @@ namespace Games
                                          }
 
                                          if (!gameOver)
-                                             RenderQuestion();
-                                     });
+                                             RenderQuestion(); });
         }
 
         void GenerateQuestion()

@@ -12,7 +12,6 @@
 #include "Components/Buzzer.hpp"
 #include "Util/pitches.h"
 
-
 extern Components::WADA *wada;
 extern Components::Button *wadaButton1;
 extern Components::Button *wadaButton2;
@@ -31,6 +30,3 @@ extern Components::Buzzer *buzzer;
 
 extern Tasks::TaskManager tasks;
 extern States::StateMachine stateMachine;
-
-#include "States/Replay.hpp"
-extern States::Replay* replayState;

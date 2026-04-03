@@ -1,6 +1,7 @@
 #pragma once
 #include "Util/Includes.h"
 #include "Tasks/ExplainTask.hpp"
+#include "States/SessionResult.hpp"
 #include <vector>
 #include <random>
 #include <chrono>
@@ -60,8 +61,8 @@ namespace Games
                 if (now - gameOverStart >= GAME_OVER_DELAY)
                 {
                     lcd->Clear();
-                    replayState->SetReplayState("game4");
-                    stateMachine.RequestTransition("replay");
+                    States::PrepareGameResult("game4", didWin, score);
+                    stateMachine.RequestTransition("gameover");
                 }
                 return;
             }
@@ -79,7 +80,7 @@ namespace Games
             }
 
             if (phase == Phase::RoundPause && now >= phaseUntil)
-                if (roundWasSuccess)x
+                if (roundWasSuccess)
                     BeginRound(true);
                 else
                     BeginRound(false);

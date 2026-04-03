@@ -5,6 +5,8 @@
 #include "States/Game2.hpp"
 #include "States/Game3.hpp"
 #include "States/Game4.hpp"
+#include "States/GameOverState.hpp"
+#include "States/SessionResult.hpp"
 
 Components::Button *userButton = new Components::Button(USER_BTN);
 Components::WADA *wada = new Components::WADA(D3, D4, D5);
@@ -24,12 +26,11 @@ Components::Button *wadaButton8 = wada->GetButton(7);
 
 Tasks::TaskManager tasks;
 States::StateMachine stateMachine;
-States::Replay *replayState;
+unsigned long sessionStartMs = 0;
+bool timeUpHandled = false;
 
 void setup()
 {
-
-  int a = カ;
   Serial.begin(9600);
   lcd->Init();
   lcd->Clear();
@@ -52,6 +53,10 @@ void setup()
 
   buzzer->PlayMusicTrack(startup_frequencies, startup_durations, 10, false);
 
+  States::ResetSessionWins();
+  sessionStartMs = millis();
+  timeUpHandled = false;
+
   States::MainMenu *mainmenu = new States::MainMenu(&stateMachine);
   stateMachine.RegisterState(mainmenu);
 
@@ -71,27 +76,30 @@ void setup()
   stateMachine.RegisterState(game4);
   game4->AddAllowedTransition(game4);
 
-  replayState = new States::Replay(&stateMachine);
-  replayState->AddAllowedTransition(mainmenu);
-  replayState->AddAllowedTransition(game1);
-  replayState->AddAllowedTransition(game2);
-  replayState->AddAllowedTransition(game3);
-  replayState->AddAllowedTransition(game4);
+  States::GameOverState *gameOver = new States::GameOverState(&stateMachine);
+  stateMachine.RegisterState(gameOver);
 
   mainmenu->AddAllowedTransition(game1);
   mainmenu->AddAllowedTransition(game2);
   mainmenu->AddAllowedTransition(game3);
   mainmenu->AddAllowedTransition(game4);
+  mainmenu->AddAllowedTransition(gameOver);
 
   game1->AddAllowedTransition(mainmenu);
   game2->AddAllowedTransition(mainmenu);
   game3->AddAllowedTransition(mainmenu);
   game4->AddAllowedTransition(mainmenu);
 
-  game1->AddAllowedTransition(replayState);
-  game2->AddAllowedTransition(replayState);
-  game3->AddAllowedTransition(replayState);
-  game4->AddAllowedTransition(replayState);
+  game1->AddAllowedTransition(gameOver);
+  game2->AddAllowedTransition(gameOver);
+  game3->AddAllowedTransition(gameOver);
+  game4->AddAllowedTransition(gameOver);
+
+  gameOver->AddAllowedTransition(mainmenu);
+  gameOver->AddAllowedTransition(game1);
+  gameOver->AddAllowedTransition(game2);
+  gameOver->AddAllowedTransition(game3);
+  gameOver->AddAllowedTransition(game4);
 
   stateMachine.SetInitialState("mainmenu");
 }
@@ -103,4 +111,23 @@ void loop()
   wada->Tick();
   tasks.Tick();
   stateMachine.Tick();
+
+  if (timeUpHandled)
+    return;
+
+  if (millis() - sessionStartMs > 600000UL)
+  {
+    timeUpHandled = true;
+
+    String restartState = "mainmenu";
+    States::State *currentState = stateMachine.GetCurrentState();
+    if (currentState)
+      restartState = currentState->GetName();
+
+    if (restartState != "game1" && restartState != "game2" && restartState != "game3" && restartState != "game4")
+      restartState = "mainmenu";
+
+    States::PrepareTimeUpResult(restartState);
+    stateMachine.RequestTransition("gameover");
+  }
 }

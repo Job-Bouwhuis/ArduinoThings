@@ -6,9 +6,9 @@
 - States are implemented in `include/States/*.hpp`:
   - `MainMenu` displays options and animates WADA.
   - `Game1` is binary conversion challenge with WADA button input.
-  - `Game2` is a Katakana demo (visual display, no win/lose logic yet).
+  - `Game2` is a timed Katakana-to-romaji quiz with score and lives.
   - `Game3` is lane-avoidance obstacle game.
-  - `Game4` is placeholder stub.
+  - `Game4` is a Simon-style LED memory sequence game.
   - `Replay` handles returning to previously played state.
 - `TaskManager` schedules and ticks ongoing coroutines/tasks.
 - `StateMachine` manages transitions between states and resets WADA button callback events on transition.
@@ -24,7 +24,6 @@
 | Potentiometer | `Components::Potentiometer *pot` | `A0` | analog input volume/unused. |
 | Buzzer | `Components::Buzzer *buzzer` | `D9` | PWM beep/audio output. |
 
-> **Note:** `USER_BTN` is referenced in code but not defined here; check platformio board variant or `Util/Includes.h` for concrete assignment.
 
 ## 3. Main program flow
 
@@ -46,9 +45,9 @@
 ```mermaid
 flowchart TB
     A[MainMenu] -->|BTN1| B[Game1]
-    A -->|BTN2| C[Game2 (T.B.D.)]
+    A -->|BTN2| C[Game2]
     A -->|BTN3| D[Game3]
-    A -->|BTN4| E[Game4 (T.B.D.)]
+    A -->|BTN4| E[Game4]
     B --> F[Replay]
     C --> F
     D --> F
@@ -68,7 +67,13 @@ flowchart TB
 - `RoundTask` has timer, 4 rounds (1..4), correct/incorrect feedback, score update,
 - On complete: show win/lose, go to `replay` state.
 
-### 5.2 Game2 — 
+### 5.2 Game2 — Katakana reading challenge
+- On enter: `ResetGame()` initializes score, lives, timers, and question state; `SetupButtons()` enables option selection and confirmation.
+- A random Katakana glyph is displayed with two romaji options; exactly one option is correct.
+- Timer-based rounds: first 5 correct answers use 60s limit, then 30s limit for higher pressure.
+- Correct answer flow: increase score (`secondsLeft`, or `secondsLeft + 30` in short-timer phase), increment correct count, generate next question.
+- Wrong/timeout flow: increment mistakes, play fail tone, generate next question unless mistakes reached max.
+- Win condition: `TARGET_CORRECT = 10`; Lose condition: `MAX_MISTAKES = 3`; then transition to `replay` after result delay.
 
 ### 5.3 Game3 — obstacle lane runner
 - OnEnter resets game and sets up WADA button1 to swap rows.
@@ -76,8 +81,14 @@ flowchart TB
 - Obstacles spawn on two lanes and move; collision sets game over.
 - Score increment for obstacles passing, displayed via WADA number.
 
-### 5.4 Game4 — placeholder
-- network class has state name `game3` (bug likely), empty lifecycle methods.
+### 5.4 Game4 — LED sequence memory puzzle
+- On enter: `ResetGame()` clears sequence and lives, `SetupButtons()` maps 8 WADA buttons to sequence inputs.
+- Round start (`BeginRound`): optionally appends one new random button to the pattern, then enters playback phase.
+- Playback phase (`UpdatePatternPlayback`): game flashes each LED in sequence and plays a corresponding tone before accepting input.
+- Input phase (`HandleInput`): each press is validated against current sequence index with immediate feedback.
+- On successful sequence repeat: score increases by `sequence_length * 10`; game either starts next longer round or finishes if target length reached.
+- On wrong input: lose one life and repeat same sequence length; game ends when lives reach 0.
+- Win condition: `TARGET_SEQUENCE_LENGTH = 10`; Lose condition: `MAX_LIVES = 5` exhausted; then transition to `replay`.
 
 ## 6. Task management and coroutines
 - `Tasks::Task` has `Tick()`, `CoroBegin`, `CoroWait`, `CoroEnd` to simulate cooperative multitasking.
@@ -116,7 +127,30 @@ flowchart TB
     Finish --> Replay
 ```
 
-### 8.3 Game3 internal flow
+### 8.3 Game2 internal flow
+```mermaid
+flowchart TB
+    G2[Game2 OnEnter] --> ResetGame
+    ResetGame --> SetupButtons
+    SetupButtons --> ExplainTask
+    ExplainTask --> StartPlay
+    StartPlay --> RenderQuestion
+    RenderQuestion --> TickLoop
+    TickLoop --> TimerUpdate
+    TimerUpdate -->|Timeout| WrongAnswer
+    TickLoop -->|Confirm input| EvaluateChoice
+    EvaluateChoice -->|Correct| CorrectAnswer
+    EvaluateChoice -->|Incorrect| WrongAnswer
+    CorrectAnswer -->|correctCount >= 10| Win
+    CorrectAnswer -->|else| NextQuestion
+    WrongAnswer -->|mistakes >= 3| Lose
+    WrongAnswer -->|else| NextQuestion
+    NextQuestion --> RenderQuestion
+    Win --> Replay
+    Lose --> Replay
+```
+
+### 8.4 Game3 internal flow
 ```mermaid
 flowchart TB
     G3[Game3 OnEnter] --> ResetGame
@@ -131,4 +165,25 @@ flowchart TB
     Continue --> Render
     GameOver --> WaitGameOverDelay
     WaitGameOverDelay --> Replay
+```
+
+### 8.5 Game4 internal flow
+```mermaid
+flowchart TB
+    G4[Game4 OnEnter] --> ResetGame
+    ResetGame --> SetupButtons
+    SetupButtons --> ExplainTask
+    ExplainTask --> BeginRound
+    BeginRound --> ShowPattern
+    ShowPattern --> AwaitInput
+    AwaitInput -->|Correct step| AdvanceInput
+    AdvanceInput -->|Sequence complete| RoundSuccess
+    RoundSuccess -->|Sequence length >= 10| Win
+    RoundSuccess -->|else| BeginRound
+    AwaitInput -->|Wrong step| RoundFail
+    RoundFail -->|Lives <= 0| Lose
+    RoundFail -->|Lives > 0| RepeatRound
+    RepeatRound --> BeginRound
+    Win --> Replay
+    Lose --> Replay
 ```

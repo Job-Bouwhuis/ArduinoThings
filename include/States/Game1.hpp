@@ -2,11 +2,11 @@
 
 #include "Util/Includes.h"
 #include "Tasks/ExplainTask.hpp"
+#include "States/SessionResult.hpp"
 #include <random>
 #include <chrono>
 
 #define MAX_ROUNDS 4
-
 
 namespace Games
 {
@@ -52,43 +52,28 @@ namespace Games
                                      {
                                          if (secondsLeft > 1)
                                              secondsLeft = 1;
-                                         buzzer->PlayEffectTone(1400, 70);
-                                     });
+                                         buzzer->PlayEffectTone(1400, 70); });
 
             wadaButton2->OnClick.Add([this](Components::Button *btn)
-                                     {
-                                         ToggleAnswerBit(0b1000000);
-                                     });
+                                     { ToggleAnswerBit(0b1000000); });
 
             wadaButton3->OnClick.Add([this](Components::Button *btn)
-                                     {
-                                         ToggleAnswerBit(0b0100000);
-                                     });
+                                     { ToggleAnswerBit(0b0100000); });
 
             wadaButton4->OnClick.Add([this](Components::Button *btn)
-                                     {
-                                         ToggleAnswerBit(0b0010000);
-                                     });
+                                     { ToggleAnswerBit(0b0010000); });
 
             wadaButton5->OnClick.Add([this](Components::Button *btn)
-                                     {
-                                         ToggleAnswerBit(0b0001000);
-                                     });
+                                     { ToggleAnswerBit(0b0001000); });
 
             wadaButton6->OnClick.Add([this](Components::Button *btn)
-                                     {
-                                         ToggleAnswerBit(0b0000100);
-                                     });
+                                     { ToggleAnswerBit(0b0000100); });
 
             wadaButton7->OnClick.Add([this](Components::Button *btn)
-                                     {
-                                         ToggleAnswerBit(0b0000010);
-                                     });
+                                     { ToggleAnswerBit(0b0000010); });
 
             wadaButton8->OnClick.Add([this](Components::Button *btn)
-                                     {
-                                         ToggleAnswerBit(0b0000001);
-                                     });
+                                     { ToggleAnswerBit(0b0000001); });
         }
 
         void ToggleAnswerBit(byte mask)
@@ -162,8 +147,8 @@ namespace Games
                 lcd->Clear();
                 CoroEnd();
 
-                replayState->SetReplayState("game1");
-                stateMachine.RequestTransition("replay");
+                States::PrepareGameResult("game1", game->lives > 0, game->score);
+                stateMachine.RequestTransition("gameover");
             }
 
         private:
